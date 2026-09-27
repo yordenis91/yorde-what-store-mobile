@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { View } from 'react-native'
 import { Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
 import { useStaffAuthStore } from '@yws/shared'
 import { useDashboard } from '../../src/hooks/queries'
+import { usePushRegistration } from '../../src/hooks/usePushRegistration'
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
@@ -18,6 +19,11 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 export default function DashboardScreen() {
   const tenant = useStaffAuthStore((s) => s.activeTenant)
   const { data, isLoading, isError } = useDashboard('7d')
+  const { promptIfNeeded } = usePushRegistration()
+
+  useEffect(() => {
+    if (data) promptIfNeeded(data.totalOrders)
+  }, [data, promptIfNeeded])
 
   if (isLoading) return <Spinner fullScreen />
   if (isError || !data) return <EmptyState title="Couldn't load your dashboard" description="Pull to refresh, or check your connection." />

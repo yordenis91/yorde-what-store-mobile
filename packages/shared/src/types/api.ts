@@ -15,6 +15,9 @@ export interface PaginatedResult<T> {
   meta: { page: number; limit: number; total: number; totalPages: number }
 }
 
+/** Mirrors the api's `DevicePlatform` Prisma enum (see `device_tokens`). */
+export type DevicePlatform = 'IOS' | 'ANDROID'
+
 export interface User {
   id: string
   email: string

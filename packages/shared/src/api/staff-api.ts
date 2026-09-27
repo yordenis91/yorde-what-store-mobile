@@ -8,6 +8,7 @@ import type {
   CustomerListItem,
   DashboardRange,
   DashboardSummary,
+  DevicePlatform,
   Order,
   PaginatedResult,
   Product,
@@ -169,6 +170,12 @@ export function createStaffApi(baseURL: string) {
     dashboard: {
       summary: (range: DashboardRange = '7d') =>
         unwrap<DashboardSummary>(client.get('/dashboard/summary', { params: { range } })),
+    },
+    devices: {
+      register: (payload: { token: string; platform: DevicePlatform; deviceId: string }) =>
+        unwrap<{ id: string; registered: true }>(client.post('/devices', payload)),
+      /** Idempotent server-side (see api's DevicesService.revoke) — safe to call with a token that's already gone. */
+      unregister: (token: string) => client.delete(`/devices/${encodeURIComponent(token)}`),
     },
   }
 }

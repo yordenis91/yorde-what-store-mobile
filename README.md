@@ -117,23 +117,39 @@ app-restart-surviving cookie jar on native without a cookie-jar library).
   could still be replayed until it naturally expires (7d staff / 30d
   customer) or is caught by reuse detection.
 
-## Open backend questions
+## Push notifications (staff app — resolved for staff, open for customer)
 
-`yorde-what-store-api` now has the backend half of push notifications
-(`device_tokens` table, `POST /devices` / `DELETE /devices/:token`,
-`PushService`/`NoOpPushService`, hooked into
-`order-notification.processor.ts` for Telegram-fulfilled orders) — see that
-repo's own history. What's still missing is entirely on this side:
+`yorde-what-store-api` has the backend half (`device_tokens` table,
+`POST /devices` / `DELETE /devices/:token`, `PushService`/`NoOpPushService`,
+hooked into `order-notification.processor.ts` for Telegram-fulfilled orders).
+The staff app now wires up to it end to end:
 
-- No screen calls `POST /devices` yet. `packages/shared/src/notifications/push.ts`
-  implements requesting permission and reading the device's Expo push token,
-  but nothing registers it with the api after login, and nothing calls
-  `DELETE /devices/:token` on logout. Per the product decision already made
-  (see conversation history, not re-litigated here): permission is asked
-  post-first-purchase with a pre-prompt, not at login — that UI doesn't
-  exist yet either.
-- Real delivery (Expo push API / FCM / APNs) replacing `NoOpPushService` is
-  a deliberate post-MVP follow-up on the api side.
+- `apps/staff/src/hooks/usePushRegistration.ts` shows an in-app pre-prompt
+  (a plain `Alert`, not a polished UI moment — its only job is to explain
+  *why* before the OS dialog appears, which can only meaningfully ask once
+  per install on iOS) the first time the dashboard loads with at least one
+  order (`DashboardSummary.totalOrders > 0`) — asking before there's
+  anything to notify about would just be permission-priming noise.
+  Never re-asked automatically after that, accept or decline
+  (`apps/staff/src/lib/push-prompt.ts`, AsyncStorage-backed) — there's no
+  settings toggle to re-trigger it yet.
+- Accepting calls `packages/shared/src/notifications/push.ts`'s
+  `registerForPushNotificationsAsync()` (the OS permission dialog + Expo
+  push token) and registers it via `staffApi.devices.register()`, keyed by
+  the same stable `deviceId` the mobile-refresh flow uses.
+- Logging out best-effort unregisters the token (`getExpoPushTokenIfGranted()`
+  + `staffApi.devices.unregister()`) before revoking the session — skipped
+  silently if permission was never granted.
+
+**Customer app: still open, deliberately not built this pass.** The backend
+only supports staff device tokens (`device_tokens.userId` references `User`,
+not `Customer`; there's no storefront devices endpoint) — extending this to
+customers needs its own backend change first (a customer-scoped table/
+endpoint), not just mobile-side wiring, so it's out of scope here.
+
+Real delivery (Expo push API / FCM / APNs) replacing `NoOpPushService` is a
+deliberate post-MVP follow-up on the api side — nothing on the mobile side
+needs to change when that lands.
 
 ## What's deliberately not done yet
 
