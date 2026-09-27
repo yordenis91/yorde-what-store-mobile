@@ -1,0 +1,28 @@
+{
+  "name": "yorde-what-store-mobile",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Yorde What Store - Mobile monorepo (Expo apps + shared packages)",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:staff": "pnpm --filter @yws/staff dev",
+    "dev:customer": "pnpm --filter @yws/customer dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

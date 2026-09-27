@@ -141,3 +141,28 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Turborepo
+.turbo
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build output (only present after `expo prebuild`)
+ios/
+android/
+
+# Signing / credentials — never committed
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+credentials.json
+
+# macOS
+.DS_Store
+

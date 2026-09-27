@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Yorde What Store - Seller",
+    "slug": "yws-staff",
+    "scheme": "ywsstaff",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yordewhatstore.staff"
+    },
+    "android": {
+      "package": "com.yordewhatstore.staff",
+      "adaptiveIcon": {
+        "backgroundColor": "#4f46e5"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#4f46e5"
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:3000/api/v1"
+    }
+  }
+}
