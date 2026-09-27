@@ -9,8 +9,8 @@ one monorepo with the design system and the API contract:
 Both talk to the same backend, [`yorde-what-store-api`](https://github.com/yordenis91/yorde-what-store-api),
 and mirror the contracts already proven out in [`yorde-what-store-client`](https://github.com/yordenis91/yorde-what-store-client)
 (the web admin + storefront). This README describes what's actually built, not
-an aspirational plan — see "Open backend questions" below for the two gaps
-that need a decision before this is production-ready.
+an aspirational plan — see "Open backend questions" below for the gap that
+still needs mobile-side work before this is production-ready.
 
 ## Why two apps, not one
 
@@ -85,42 +85,55 @@ all packages) — clean on both. Neither has been run in a simulator/device in
 this session (no Xcode/Android SDK in this container); do that before
 treating any screen as done.
 
+## Refresh tokens (resolved)
+
+Mobile can't use the web client's httpOnly-cookie refresh (no persistent,
+app-restart-surviving cookie jar on native without a cookie-jar library).
+`yorde-what-store-api` now exposes a mobile-safe path instead —
+`POST /auth/mobile/refresh` and `POST /storefront/customers/auth/mobile/refresh`
+— purely additive alongside the web cookie flow, which is untouched:
+
+- `login`/`register`/`2fa/verify`/`switch-tenant` (staff) and
+  `login`/`register` (customer) send a `deviceId`
+  (`packages/shared/src/utils/device-id.ts` — a UUID generated once and kept
+  in SecureStore) and, in return, get a `mobileRefreshToken` in the response
+  body alongside the usual access token.
+- `useStaffAuthStore`/`useCustomerAuthStore` persist **only** `refreshToken`
+  in SecureStore (`packages/shared/src/storage/secure-json-storage.ts`) —
+  never the access token, same posture as the web client. `waitForHydration`
+  (`packages/shared/src/storage/wait-for-hydration.ts`) guards each app's
+  bootstrap effect against reading it before SecureStore's async rehydration
+  finishes.
+- Refreshing rotates the token (old one dies, a new one comes back) and
+  reuse of an already-rotated token — or the right token from a different
+  `deviceId` — revokes the whole token family server-side, forcing re-login
+  everywhere that session was still alive. See the api's
+  `AuthService.mobileRefresh` doc comment for the full design.
+- `auth.logout()` in both `staff-api.ts` and `customer-api.ts` clears the
+  locally-stored refresh token. The api has **no endpoint yet** to revoke a
+  mobile refresh family server-side on logout (only the web cookie's own
+  token gets revoked) — a real, if low-severity, follow-up: a device that's
+  logged out locally but whose old refresh token leaked before that point
+  could still be replayed until it naturally expires (7d staff / 30d
+  customer) or is caught by reuse detection.
+
 ## Open backend questions
 
-Two real gaps found while building this, flagged rather than silently worked
-around:
+`yorde-what-store-api` now has the backend half of push notifications
+(`device_tokens` table, `POST /devices` / `DELETE /devices/:token`,
+`PushService`/`NoOpPushService`, hooked into
+`order-notification.processor.ts` for Telegram-fulfilled orders) — see that
+repo's own history. What's still missing is entirely on this side:
 
-### 1. Refresh-token cookie doesn't survive a killed app
-
-`POST /auth/login` (and its storefront/customer equivalent) sets the refresh
-token as an **httpOnly cookie** and only ever returns the access token in the
-body (`yorde-what-store-api/src/modules/auth/auth.controller.ts`). That's
-correct and necessary for the web client. On React Native there is no
-persistent, app-restart-surviving cookie jar without adding a native
-cookie-jar library — `useStaffAuthStore`/`useCustomerAuthStore` keep the
-access token in memory only (same posture as the web client), and
-`auth.bootstrap()` best-effort attempts the refresh call on cold start, but
-it will fail after the app has been fully killed and relaunched, forcing a
-re-login.
-
-**Needs a decision**: either (a) add a mobile-safe refresh path to the api —
-e.g. return the refresh token in the response body when a request carries a
-header like `X-Client: mobile`, so the apps can store it themselves in
-`expo-secure-store` — or (b) accept shorter mobile sessions and rely on
-re-login. Flagged in code at `packages/shared/src/stores/staff-auth.store.ts`
-and `customer-auth.store.ts`. **Not decided or silently worked around.**
-
-### 2. No push-notification endpoint in the api
-
-`yorde-what-store-api` has no push/FCM/device-token module today (grepped
-the whole `src/` tree — none). `packages/shared/src/notifications/push.ts`
-implements the client-side half (permission request, Expo push token) but
-is **not wired up** — no screen calls it. Turning it on needs:
-
-1. A tenant-scoped endpoint to register/unregister a device token per staff
-   user or customer.
-2. `queue/processors/order-notification.processor.ts` (which already renders
-   the WhatsApp/Telegram fulfillment message) to also fan out a push.
+- No screen calls `POST /devices` yet. `packages/shared/src/notifications/push.ts`
+  implements requesting permission and reading the device's Expo push token,
+  but nothing registers it with the api after login, and nothing calls
+  `DELETE /devices/:token` on logout. Per the product decision already made
+  (see conversation history, not re-litigated here): permission is asked
+  post-first-purchase with a pre-prompt, not at login — that UI doesn't
+  exist yet either.
+- Real delivery (Expo push API / FCM / APNs) replacing `NoOpPushService` is
+  a deliberate post-MVP follow-up on the api side.
 
 ## What's deliberately not done yet
 

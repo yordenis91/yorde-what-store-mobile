@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useStaffAuthStore } from '../stores/staff-auth.store'
 import { createHttpClient, unwrap } from './http-factory'
+import { getDeviceId } from '../utils/device-id'
 import type {
   ApiEnvelope,
   CustomerDetail,
@@ -19,27 +20,44 @@ export interface LoginPayload {
   password: string
 }
 
-export type LoginResult = { requiresTwoFactor: true; challengeToken: string } | { user: User; accessToken: string }
+export type LoginResult =
+  | { requiresTwoFactor: true; challengeToken: string }
+  | { user: User; accessToken: string; mobileRefreshToken?: string }
 
 /**
- * See the "KNOWN GAP" note in `staff-auth.store.ts`: this relies on the
- * platform's native cookie jar carrying the httpOnly `refresh_token` cookie
- * set by `POST /auth/login`, which axios/RN does for the lifetime of the
- * process but not reliably across an app kill+relaunch. Until the api adds a
- * mobile-safe refresh path, a cold start after the access token expired means
- * this resolves null and the user re-authenticates.
+ * Rotates the mobile-safe refresh token (`POST /auth/mobile/refresh`,
+ * `{refreshToken, deviceId}` → `{accessToken, refreshToken}`) — the
+ * counterpart to the web client's httpOnly-cookie refresh, which native has
+ * no equivalent persistent cookie jar for. `deviceId` must be the same one
+ * the token was issued to: the api revokes the whole refresh-token family on
+ * a mismatch (see its MobileRefreshDto), so presenting the right token from
+ * a different install is treated the same as a stolen, reused token.
+ * Returns null (and clears the stored refresh token) when there's nothing to
+ * restore or the api rejects it — the caller routes to login either way.
  */
 async function refreshStaffToken(baseURL: string): Promise<string | null> {
+  const refreshToken = useStaffAuthStore.getState().refreshToken
+  if (!refreshToken) return null
   try {
-    const { data } = await axios.post<ApiEnvelope<{ accessToken: string }>>(
-      `${baseURL}/auth/refresh`,
-      {},
-      { withCredentials: true },
+    const deviceId = await getDeviceId()
+    const { data } = await axios.post<ApiEnvelope<{ accessToken: string; refreshToken: string }>>(
+      `${baseURL}/auth/mobile/refresh`,
+      { refreshToken, deviceId },
     )
+    useStaffAuthStore.getState().setRefreshToken(data.data.refreshToken)
     return data.data.accessToken
   } catch {
+    useStaffAuthStore.getState().setRefreshToken(null)
     return null
   }
+}
+
+/** Persists `mobileRefreshToken` from a login/register/2fa/switch-tenant response, if present, and strips it from the returned shape the caller sees. */
+function captureMobileRefreshToken<T extends { mobileRefreshToken?: string }>(result: T): T {
+  if (result.mobileRefreshToken) {
+    useStaffAuthStore.getState().setRefreshToken(result.mobileRefreshToken)
+  }
+  return result
 }
 
 /**
@@ -63,12 +81,11 @@ export function createStaffApi(baseURL: string) {
     client,
     auth: {
       /**
-       * Best-effort session restore on app start: attempts a refresh (see the
-       * cookie-jar caveat above), and on success loads the profile + tenant
-       * memberships. Returns null when there's no session to restore — the
-       * caller routes to login. This is the exported hook the refresh gap
-       * should eventually replace with something that actually works across
-       * a killed app.
+       * Session restore on app start: rotates the persisted mobile refresh
+       * token (see `refreshStaffToken`) and, on success, loads the profile +
+       * tenant memberships. Returns null when there's no session to restore
+       * (never logged in on this device, or the refresh token was revoked/
+       * expired) — the caller routes to login.
        */
       bootstrap: async (): Promise<{ user: User; tenants: Tenant[] } | null> => {
         const accessToken = await refreshStaffToken(baseURL)
@@ -80,15 +97,50 @@ export function createStaffApi(baseURL: string) {
         ])
         return { user, tenants }
       },
-      login: (payload: LoginPayload) => unwrap<LoginResult>(client.post('/auth/login', payload)),
-      register: (payload: { email: string; password: string; name: string; storeName: string; storeSlug: string }) =>
-        unwrap<{ user: User; tenant: Tenant; accessToken: string }>(client.post('/auth/register', payload)),
-      verifyTwoFactor: (challengeToken: string, code: string) =>
-        unwrap<{ user: User; accessToken: string }>(client.post('/auth/2fa/verify', { challengeToken, code })),
+      login: async (payload: LoginPayload) => {
+        const deviceId = await getDeviceId()
+        const result = await unwrap<LoginResult>(client.post('/auth/login', { ...payload, deviceId }))
+        return 'requiresTwoFactor' in result ? result : captureMobileRefreshToken(result)
+      },
+      register: async (payload: {
+        email: string
+        password: string
+        name: string
+        storeName: string
+        storeSlug: string
+      }) => {
+        const deviceId = await getDeviceId()
+        const result = await unwrap<{ user: User; tenant: Tenant; accessToken: string; mobileRefreshToken?: string }>(
+          client.post('/auth/register', { ...payload, deviceId }),
+        )
+        return captureMobileRefreshToken(result)
+      },
+      verifyTwoFactor: async (challengeToken: string, code: string) => {
+        const deviceId = await getDeviceId()
+        const result = await unwrap<{ user: User; accessToken: string; mobileRefreshToken?: string }>(
+          client.post('/auth/2fa/verify', { challengeToken, code, deviceId }),
+        )
+        return captureMobileRefreshToken(result)
+      },
       me: () => unwrap<User>(client.get('/auth/me')),
-      logout: () => client.post('/auth/logout'),
-      switchTenant: (tenantId: string) =>
-        unwrap<{ user: User; accessToken: string }>(client.post('/auth/switch-tenant', { tenantId })),
+      logout: async () => {
+        try {
+          await client.post('/auth/logout')
+        } finally {
+          // Web logout only revokes the httpOnly cookie's refresh token; the
+          // api has no endpoint yet to revoke a mobile refresh family (see
+          // the mobile README's open backend questions), so this at least
+          // stops the device itself from using the stored one again.
+          useStaffAuthStore.getState().setRefreshToken(null)
+        }
+      },
+      switchTenant: async (tenantId: string) => {
+        const deviceId = await getDeviceId()
+        const result = await unwrap<{ user: User; accessToken: string; mobileRefreshToken?: string }>(
+          client.post('/auth/switch-tenant', { tenantId, deviceId }),
+        )
+        return captureMobileRefreshToken(result)
+      },
       forgotPassword: (email: string) => unwrap<{ sent: boolean }>(client.post('/auth/forgot-password', { email })),
       resetPassword: (token: string, password: string) =>
         unwrap<{ reset: boolean }>(client.post('/auth/reset-password', { token, password })),

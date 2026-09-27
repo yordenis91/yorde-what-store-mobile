@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useCustomerAuthStore } from '../stores/customer-auth.store'
 import { createHttpClient, unwrap } from './http-factory'
+import { getDeviceId } from '../utils/device-id'
 import type { ApiEnvelope, Customer, CustomerOrderSummary, Order, PaginatedResult, Product, PublicTenant } from '../types/api'
 
 export interface CustomerRegisterPayload {
@@ -49,20 +50,34 @@ export type CreateOrderResult =
   | { order: Order; fulfillment: { type: 'MERCADOPAGO' } }
 
 /**
- * See the "KNOWN GAP" note in `customer-auth.store.ts` (same refresh-cookie
- * caveat as the staff realm, through the customer's own refresh endpoint).
+ * Rotates the mobile-safe refresh token — see `staff-api.ts`'s
+ * `refreshStaffToken` doc comment for the full rationale (same design, this
+ * realm's own endpoint and store).
  */
 async function refreshCustomerToken(baseURL: string, tenantSlug: string | null): Promise<string | null> {
+  const refreshToken = useCustomerAuthStore.getState().refreshToken
+  if (!refreshToken) return null
   try {
-    const { data } = await axios.post<ApiEnvelope<{ accessToken: string }>>(
-      `${baseURL}/storefront/customers/auth/refresh`,
-      {},
-      { withCredentials: true, headers: tenantSlug ? { 'X-Tenant-ID': tenantSlug } : undefined },
+    const deviceId = await getDeviceId()
+    const { data } = await axios.post<ApiEnvelope<{ accessToken: string; refreshToken: string }>>(
+      `${baseURL}/storefront/customers/auth/mobile/refresh`,
+      { refreshToken, deviceId },
+      { headers: tenantSlug ? { 'X-Tenant-ID': tenantSlug } : undefined },
     )
+    useCustomerAuthStore.getState().setRefreshToken(data.data.refreshToken)
     return data.data.accessToken
   } catch {
+    useCustomerAuthStore.getState().setRefreshToken(null)
     return null
   }
+}
+
+/** Persists `mobileRefreshToken` from a register/login response, if present, and strips it from the returned shape the caller sees. */
+function captureMobileRefreshToken<T extends { mobileRefreshToken?: string }>(result: T): T {
+  if (result.mobileRefreshToken) {
+    useCustomerAuthStore.getState().setRefreshToken(result.mobileRefreshToken)
+  }
+  return result
 }
 
 /**
@@ -89,7 +104,7 @@ export function createCustomerApi(baseURL: string) {
       bySlug: (slug: string) => unwrap<PublicTenant>(client.get(`/tenants/storefront/${slug}`)),
     },
     auth: {
-      /** Best-effort session restore on app start — same caveat as `staff-api.ts`'s `auth.bootstrap`. */
+      /** Session restore on app start — same design as `staffApi.auth.bootstrap`. */
       bootstrap: async (): Promise<Customer | null> => {
         const tenantSlug = useCustomerAuthStore.getState().tenantSlug
         if (!tenantSlug) return null
@@ -98,11 +113,30 @@ export function createCustomerApi(baseURL: string) {
         useCustomerAuthStore.getState().setAccessToken(accessToken)
         return unwrap<Customer>(client.get('/storefront/customers/me'))
       },
-      register: (payload: CustomerRegisterPayload) =>
-        unwrap<{ customer: Customer; accessToken: string }>(client.post('/storefront/customers/auth/register', payload)),
-      login: (payload: CustomerLoginPayload) =>
-        unwrap<{ customer: Customer; accessToken: string }>(client.post('/storefront/customers/auth/login', payload)),
-      logout: () => client.post('/storefront/customers/auth/logout'),
+      register: async (payload: CustomerRegisterPayload) => {
+        const deviceId = await getDeviceId()
+        const result = await unwrap<{ customer: Customer; accessToken: string; mobileRefreshToken?: string }>(
+          client.post('/storefront/customers/auth/register', { ...payload, deviceId }),
+        )
+        return captureMobileRefreshToken(result)
+      },
+      login: async (payload: CustomerLoginPayload) => {
+        const deviceId = await getDeviceId()
+        const result = await unwrap<{ customer: Customer; accessToken: string; mobileRefreshToken?: string }>(
+          client.post('/storefront/customers/auth/login', { ...payload, deviceId }),
+        )
+        return captureMobileRefreshToken(result)
+      },
+      logout: async () => {
+        try {
+          await client.post('/storefront/customers/auth/logout')
+        } finally {
+          // Same caveat as staff-api.ts's logout: no endpoint yet to revoke
+          // a mobile refresh family server-side, so this at least stops the
+          // device from using the stored one again.
+          useCustomerAuthStore.getState().setRefreshToken(null)
+        }
+      },
       forgotPassword: (email: string) =>
         unwrap<{ sent: boolean }>(client.post('/storefront/customers/auth/forgot-password', { email })),
       resetPassword: (token: string, password: string) =>
