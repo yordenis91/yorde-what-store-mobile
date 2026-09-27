@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Yorde What Store",
+    "slug": "yws-customer",
+    "scheme": "ywstore",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yordewhatstore.customer"
+    },
+    "android": {
+      "package": "com.yordewhatstore.customer",
+      "adaptiveIcon": {
+        "backgroundColor": "#3b82f6"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "ywstore", "host": "store" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#3b82f6"
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:3000/api/v1"
+    }
+  }
+}

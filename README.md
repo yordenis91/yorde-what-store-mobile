@@ -1,253 +1,149 @@
-# Yorde What Store - Mobile App
+# Yorde What Store — Mobile
 
-React Native + Expo mobile application for the Yorde What Store multitenant ecommerce platform.
+Two native apps for the Yorde What Store multitenant ecommerce platform, sharing
+one monorepo with the design system and the API contract:
 
-## 📱 About
+- **`apps/staff`** — the seller/staff app (dashboard, products, orders, customers).
+- **`apps/customer`** — the storefront app end customers shop from.
 
-This is a mobile-first application for WhatsApp sellers to manage their stores, products, orders, and payments directly from their phones. Built with React Native and Expo for iOS and Android.
+Both talk to the same backend, [`yorde-what-store-api`](https://github.com/yordenis91/yorde-what-store-api),
+and mirror the contracts already proven out in [`yorde-what-store-client`](https://github.com/yordenis91/yorde-what-store-client)
+(the web admin + storefront). This README describes what's actually built, not
+an aspirational plan — see "Open backend questions" below for the two gaps
+that need a decision before this is production-ready.
 
-## 🎯 Features
+## Why two apps, not one
 
-- **Store Management** - Full CRUD operations for products and inventory
-- **Order Management** - Track orders, update status, and manage customer interactions
-- **Payment Integration** - WhatsApp, Stripe, and multiple payment methods
-- **WhatsApp Integration** - Direct messaging and payment links
-- **Offline-First** - Works offline with local data sync when connection is restored
-- **Multi-tenant** - Support for multiple seller accounts
-- **Push Notifications** - Real-time order and payment notifications
-- **Responsive Design** - Optimized for mobile devices
+A staff member and a customer are different trust boundaries with different
+sessions (see `packages/shared/src/api/staff-api.ts` vs `customer-api.ts`).
+Splitting them into two binaries — rather than one app with a mode switch —
+makes that boundary structural instead of a runtime `if`: there is no code
+path where a customer's screen can reach a staff bearer token, because the
+two apps don't share a JS bundle at all, only the pure library code below.
 
-## 🏗️ Architecture
-
-This is a monorepo using `pnpm` workspaces and `turbo` for build orchestration.
+## Layout
 
 ```
 yorde-what-store-mobile/
 ├── apps/
-│   ├── mobile/              # React Native + Expo app
-│   └── web/                 # (Optional) React web dashboard
+│   ├── staff/          Expo Router app — seller/staff
+│   └── customer/        Expo Router app — storefront/customer
 ├── packages/
-│   ├── shared/              # Shared code (types, hooks, utils, API client)
-│   └── ui/                  # Shared UI components
-├── turbo.json               # Turbo build config
-├── pnpm-workspace.yaml      # Workspaces config
-└── package.json             # Root package.json
+│   ├── shared/          Types, the two API client factories, zustand stores, utils
+│   ├── ui/               Presentational components only — no business logic
+│   └── tokens/           Design tokens (colors, spacing, typography)
+├── pnpm-workspace.yaml
+└── turbo.json
 ```
 
-## 🚀 Quick Start
+Hard rules, enforced by convention (not yet by a lint rule — see "Follow-ups"):
 
-### Prerequisites
+- `packages/shared` never imports from `apps/*`.
+- `apps/customer` never imports from `apps/staff`, or vice versa — not even a
+  relative path reaching across.
+- `packages/ui` holds no business logic or API calls, only presentation.
+- The API client is two isolated factories, `createStaffApi()` and
+  `createCustomerApi()` (`packages/shared/src/api/`), each with its own axios
+  instance, its own interceptor, and its own zustand auth store. Nothing is
+  shared between them at runtime — see the doc comments on both files.
 
-- Node.js 18+
-- pnpm 8+
-- Expo CLI
-- EAS CLI (for building and publishing)
+## Multitenant model
 
-### Installation
+Confirmed with the project owner: the mobile apps resolve tenant the same way
+the web admin does when it isn't on a real subdomain — the **`X-Tenant-ID`**
+header — since native apps have no subdomain concept:
+
+- **Staff app**: `X-Tenant-ID` is the active tenant's UUID, read from
+  `useStaffAuthStore().activeTenant.id` after login + `/auth/switch-tenant`
+  (mirrors the web admin's tenant switcher).
+- **Customer app**: `X-Tenant-ID` is the store's **slug**, remembered in
+  `useCustomerAuthStore().tenantSlug` — set from the "enter your store"
+  screen (`app/index.tsx`) or a `ywstore://store/<slug>` deep link, since
+  there's no subdomain to infer it from on native.
+
+The JWT also carries `tenantId`/`tenantRole` server-side for authorization,
+but per `yorde-what-store-api`'s `TenantMiddleware`, the header (or subdomain,
+web-only) is what resolves the *active* tenant for the request — so the
+header must be sent on every authenticated call, not assumed from the token.
+
+## Getting started
 
 ```bash
-# Clone the repository
-git clone https://github.com/yordenis91/yorde-what-store-mobile.git
-cd yorde-what-store-mobile
-
-# Install dependencies
 pnpm install
 
-# Start the mobile app (development)
-cd apps/mobile
-pnpm dev
+pnpm dev:staff       # or: pnpm --filter @yws/staff dev
+pnpm dev:customer    # or: pnpm --filter @yws/customer dev
 ```
 
-### Environment Variables
+Each app's API base URL is `expo.extra.apiUrl` in its `app.json` (defaults to
+`http://localhost:3000/api/v1`) — override per environment with an EAS
+build profile or `app.config.ts`, the same way the web client's
+`docker-entrypoint.sh` injects `VITE_API_URL` at runtime.
 
-Create `.env` files in the appropriate directories:
+Both apps were verified with `pnpm typecheck` and `pnpm lint` (turbo, across
+all packages) — clean on both. Neither has been run in a simulator/device in
+this session (no Xcode/Android SDK in this container); do that before
+treating any screen as done.
 
-**apps/mobile/.env**
-```
-EXPO_PUBLIC_API_URL=https://your-api-url.com
-EXPO_PUBLIC_STRIPE_KEY=your_stripe_publishable_key
-```
+## Open backend questions
 
-**packages/shared/.env**
-```
-# API Configuration
-API_BASE_URL=https://your-api-url.com
-```
+Two real gaps found while building this, flagged rather than silently worked
+around:
 
-## 📦 Workspaces
+### 1. Refresh-token cookie doesn't survive a killed app
 
-### `apps/mobile`
-The React Native Expo application
+`POST /auth/login` (and its storefront/customer equivalent) sets the refresh
+token as an **httpOnly cookie** and only ever returns the access token in the
+body (`yorde-what-store-api/src/modules/auth/auth.controller.ts`). That's
+correct and necessary for the web client. On React Native there is no
+persistent, app-restart-surviving cookie jar without adding a native
+cookie-jar library — `useStaffAuthStore`/`useCustomerAuthStore` keep the
+access token in memory only (same posture as the web client), and
+`auth.bootstrap()` best-effort attempts the refresh call on cold start, but
+it will fail after the app has been fully killed and relaunched, forcing a
+re-login.
 
-```bash
-cd apps/mobile
-pnpm dev        # Start development server
-pnpm build      # Build for production
-pnpm eas build  # Build with EAS
-```
+**Needs a decision**: either (a) add a mobile-safe refresh path to the api —
+e.g. return the refresh token in the response body when a request carries a
+header like `X-Client: mobile`, so the apps can store it themselves in
+`expo-secure-store` — or (b) accept shorter mobile sessions and rely on
+re-login. Flagged in code at `packages/shared/src/stores/staff-auth.store.ts`
+and `customer-auth.store.ts`. **Not decided or silently worked around.**
 
-### `packages/shared`
-Shared code including:
-- TypeScript types and interfaces
-- React hooks (useAuth, useProducts, useOrders, etc.)
-- API client configuration
-- Validation schemas (Zod)
-- Utility functions
+### 2. No push-notification endpoint in the api
 
-### `packages/ui`
-Reusable UI components
-- Form components
-- Buttons and modals
-- Layout components
-- Theme configuration
+`yorde-what-store-api` has no push/FCM/device-token module today (grepped
+the whole `src/` tree — none). `packages/shared/src/notifications/push.ts`
+implements the client-side half (permission request, Expo push token) but
+is **not wired up** — no screen calls it. Turning it on needs:
 
-## 🔗 API Integration
+1. A tenant-scoped endpoint to register/unregister a device token per staff
+   user or customer.
+2. `queue/processors/order-notification.processor.ts` (which already renders
+   the WhatsApp/Telegram fulfillment message) to also fan out a push.
 
-The app connects to the Yorde What Store API. API client configuration is in `packages/shared/api/client.ts`.
+## What's deliberately not done yet
 
-**Base URL:** `https://your-api-url.com`
+- **Product variant selection** — `product/[id].tsx` in the customer app
+  disables "add to cart" for products with variants rather than guessing a
+  UI for it; the web client's variant picker should be ported, not
+  reinvented.
+- **Stripe/MercadoPago checkout** — checkout only implements the `WHATSAPP`
+  fulfillment path (every tenant has it; it's the product's primary channel).
+  Card checkout needs the same in-app browser / deep-link-return flow the
+  web client uses (`createStripeCheckout` / `createMercadoPagoCheckout`),
+  adapted for a WebView or `expo-web-browser`.
+- **App icons/splash screens** — `app.json` has no `icon`/`splash` keys yet
+  (no brand assets available in this session); Expo will use its own
+  placeholder until real assets are added.
+- **E2E/unit tests** — `jest`/`jest-expo` are wired into both apps'
+  `package.json` (`pnpm test`) but no test files exist yet.
 
-**Authentication:** JWT tokens stored securely in device
+## Design tokens & theming
 
-## 💳 Payment Methods
-
-- **WhatsApp** - Direct messaging for payment confirmation
-- **Stripe** - Credit/debit card payments
-- **Bank Transfer** - Manual bank transfers
-- **Cash** - Local pickup payments
-
-## 🔐 Security
-
-- JWT token-based authentication
-- Secure token storage using Expo SecureStore
-- HTTPS only API communication
-- Input validation with Zod
-- Environment variables for sensitive data
-
-## 📱 Supported Platforms
-
-- **iOS** 12+
-- **Android** 6.0+
-- **Web** (via Expo Web - optional)
-
-## 🧪 Testing
-
-```bash
-# Run tests in mobile app
-cd apps/mobile
-pnpm test
-
-# Run tests in shared package
-cd packages/shared
-pnpm test
-
-# Run all tests
-pnpm test --filter="./packages/**" --filter="./apps/mobile"
-```
-
-## 🎨 Development
-
-### Code Style
-
-- TypeScript for type safety
-- ESLint for code linting
-- Prettier for code formatting
-- NativeWind for styling (Tailwind CSS for React Native)
-
-### Run Linting
-
-```bash
-pnpm lint
-```
-
-### Format Code
-
-```bash
-pnpm format
-```
-
-## 📚 Project Structure
-
-```
-apps/mobile/
-├── app/
-│   ├── (auth)/              # Auth screens (login, register)
-│   ├── (tabs)/              # Main app screens with bottom tabs
-│   │   ├── dashboard.tsx
-│   │   ├── products/
-│   │   ├── orders/
-│   │   ├── customers.tsx
-│   │   └── settings.tsx
-│   ├── _layout.tsx
-│   └── index.tsx
-├── components/              # Reusable components
-├── hooks/                   # Local hooks
-├── stores/                  # Zustand stores
-├── types/                   # Local types
-├── utils/                   # Utility functions
-├── app.json                 # Expo configuration
-├── package.json
-└── tsconfig.json
-
-packages/shared/
-├── api/
-│   └── client.ts           # Axios API client
-├── hooks/
-│   ├── useAuth.ts
-│   ├── useProducts.ts
-│   ├── useOrders.ts
-│   └── useCustomers.ts
-├── stores/
-│   ├── authStore.ts
-│   └── tenantStore.ts
-├── types/
-│   ├── index.ts
-│   ├── models.ts
-│   └── api.ts
-├── utils/
-│   ├── validation.ts        # Zod schemas
-│   ├── formatting.ts
-│   ├── whatsapp.ts
-│   └── stripe.ts
-└── package.json
-
-packages/ui/
-├── components/
-│   ├── Button.tsx
-│   ├── Input.tsx
-│   ├── Modal.tsx
-│   └── ...
-├── theme/
-│   └── colors.ts
-└── package.json
-```
-
-## 📖 Documentation
-
-- [React Native Docs](https://reactnative.dev)
-- [Expo Docs](https://docs.expo.dev)
-- [NestJS Backend API](https://github.com/yordenis91/yorde-what-store-api)
-- [React Web Client](https://github.com/yordenis91/yorde-what-store-client)
-
-## 🤝 Contributing
-
-1. Create a feature branch (`git checkout -b feature/amazing-feature`)
-2. Commit your changes (`git commit -m 'Add amazing feature'`)
-3. Push to the branch (`git push origin feature/amazing-feature`)
-4. Open a Pull Request
-
-## 📝 License
-
-This project is part of Yorde What Store. See LICENSE for details.
-
-## 👨‍💻 Author
-
-Created by [Yordenis](https://github.com/yordenis91)
-
-## 📞 Support
-
-For issues and questions, please open an issue on GitHub or contact support.
-
----
-
-**Built with ❤️ for WhatsApp sellers in the Caribbean**
+`packages/tokens/src/storefront-themes.ts` is kept byte-for-byte in sync with
+`yorde-what-store-client/src/config/themes.ts` — a tenant's `theme` column
+renders the same brand colour on the web storefront and in the customer app.
+The staff app uses its own fixed brand (`packages/tokens/src/palette.ts`,
+`staffBrand`), independent of any tenant, matching that the staff app is the
+platform's own tool rather than a per-tenant storefront.
