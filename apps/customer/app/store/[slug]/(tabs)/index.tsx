@@ -21,7 +21,7 @@ export default function CatalogScreen() {
           {tenant.tagline}
         </Text>
       ) : null}
-      <Input placeholder="Search products" value={search} onChangeText={setSearch} style={{ marginBottom: 12 }} />
+      <Input placeholder="Buscar productos" value={search} onChangeText={setSearch} style={{ marginBottom: 12 }} />
       {isLoading ? (
         <Spinner fullScreen />
       ) : (
@@ -31,7 +31,7 @@ export default function CatalogScreen() {
           numColumns={2}
           columnWrapperStyle={{ gap: 12 }}
           contentContainerStyle={{ gap: 12 }}
-          ListEmptyComponent={<EmptyState title="No products yet" />}
+          ListEmptyComponent={<EmptyState title="Todavía no hay productos" />}
           renderItem={({ item }) => {
             const cover = item.images.find((i) => i.isCover) ?? item.images[0]
             return (

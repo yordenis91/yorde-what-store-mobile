@@ -25,7 +25,7 @@ export default function WelcomeScreen() {
   async function onContinue() {
     const parsed = storeSlugSchema.safeParse(input)
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Enter a store name or link')
+      setError(parsed.error.issues[0]?.message ?? 'Ingresá el nombre o el link de una tienda')
       return
     }
     setLoading(true)
@@ -35,7 +35,7 @@ export default function WelcomeScreen() {
       setTenantSlug(parsed.data)
       router.replace(`/store/${parsed.data}`)
     } catch (err) {
-      setError(extractErrorMessage(err, "Couldn't find that store"))
+      setError(extractErrorMessage(err, 'No encontramos esa tienda'))
     } finally {
       setLoading(false)
     }
@@ -46,12 +46,14 @@ export default function WelcomeScreen() {
       <View style={{ flex: 1, justifyContent: 'center', gap: 24 }}>
         <View style={{ gap: 4 }}>
           <Text variant="title">Yorde What Store</Text>
-          <Text color="muted">Enter your store's name or share link to start shopping</Text>
+          <Text color="muted">
+            Ingresá el nombre de la tienda o el link que te compartieron para empezar a comprar
+          </Text>
         </View>
         <Card style={{ gap: 16 }}>
-          <Input placeholder="e.g. my-store" autoCapitalize="none" value={input} onChangeText={setInput} />
+          <Input placeholder="ej. mi-tienda" autoCapitalize="none" value={input} onChangeText={setInput} />
           {error ? <Text color="danger">{error}</Text> : null}
-          <Button title="Continue" onPress={onContinue} loading={loading} />
+          <Button title="Continuar" onPress={onContinue} loading={loading} />
         </Card>
       </View>
     </Screen>

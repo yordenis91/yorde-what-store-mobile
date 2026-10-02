@@ -19,12 +19,12 @@ export default function Index() {
     return (
       <Screen>
         <EmptyState
-          title="Can't reach the server"
-          description="Check your connection and try again."
-          actionLabel="Try again"
+          title="No pudimos conectar con el servidor"
+          description="Revisá tu conexión e intentá de nuevo."
+          actionLabel="Intentar de nuevo"
           onAction={() => restoreStaffSession()}
         />
-        <Button title="Sign in with another account" variant="ghost" onPress={clear} />
+        <Button title="Entrar con otra cuenta" variant="ghost" onPress={clear} />
       </Screen>
     )
   }

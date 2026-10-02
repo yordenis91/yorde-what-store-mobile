@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { FlatList, View } from 'react-native'
 import { Badge, Card, EmptyState, Input, Screen, Spinner, Text } from '@yws/ui'
+import { CUSTOMER_SEGMENT_LABEL } from '@yws/shared'
 import { useCustomers } from '../../src/hooks/queries'
 import { useRefreshByUser } from '../../src/hooks/useRefreshByUser'
 
@@ -12,9 +13,9 @@ export default function CustomersScreen() {
   return (
     <Screen>
       <Text variant="title" style={{ marginBottom: 12 }}>
-        Customers
+        Clientes
       </Text>
-      <Input placeholder="Search customers" value={search} onChangeText={setSearch} style={{ marginBottom: 12 }} />
+      <Input placeholder="Buscar clientes" value={search} onChangeText={setSearch} style={{ marginBottom: 12 }} />
       {isLoading ? (
         <Spinner fullScreen />
       ) : (
@@ -24,7 +25,7 @@ export default function CustomersScreen() {
           onRefresh={onRefresh}
           keyExtractor={(c) => c.id}
           contentContainerStyle={{ gap: 10 }}
-          ListEmptyComponent={<EmptyState title="No customers yet" />}
+          ListEmptyComponent={<EmptyState title="Todavía no hay clientes" />}
           renderItem={({ item }) => (
             <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ gap: 2 }}>
@@ -34,8 +35,10 @@ export default function CustomersScreen() {
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text weight="semibold">{item.totalOrders} orders</Text>
-                <Badge label={item.segment} tone={item.segment === 'vip' ? 'success' : 'neutral'} />
+                <Text weight="semibold">
+                  {item.totalOrders} {item.totalOrders === 1 ? 'pedido' : 'pedidos'}
+                </Text>
+                <Badge label={CUSTOMER_SEGMENT_LABEL[item.segment]} tone={item.segment === 'vip' ? 'success' : 'neutral'} />
               </View>
             </Card>
           )}

@@ -14,7 +14,7 @@ export default function ProductDetailScreen() {
   const [added, setAdded] = useState(false)
 
   if (isLoading) return <Spinner fullScreen />
-  if (!product) return <EmptyState title="Product not found" />
+  if (!product) return <EmptyState title="Producto no encontrado" />
 
   const cover = product.images.find((i) => i.isCover) ?? product.images[0]
   // Stock only limits the cart when the store tracks inventory — mirrors the web client.
@@ -44,18 +44,18 @@ export default function ProductDetailScreen() {
         {product.description ? <Text color="muted">{product.description}</Text> : null}
       </View>
       <Button
-        title={soldOut ? 'Out of stock' : allInCart ? 'All available units are in your cart' : added ? 'Added to cart' : 'Add to cart'}
+        title={soldOut ? 'Agotado' : allInCart ? 'Ya tenés todo el stock en el carrito' : added ? 'Agregado al carrito' : 'Agregar al carrito'}
         onPress={onAddToCart}
         style={{ marginTop: 20 }}
         disabled={product.hasVariants || soldOut || allInCart}
       />
       {product.hasVariants ? (
         <Text color="muted" variant="caption" style={{ marginTop: 8, textAlign: 'center' }}>
-          This product has options — variant selection isn't implemented yet.
+          Este producto tiene opciones — todavía no se pueden elegir desde la app.
         </Text>
       ) : null}
       {added ? (
-        <Button title="View cart" variant="secondary" onPress={() => router.push(`/store/${slug}/cart`)} style={{ marginTop: 8 }} />
+        <Button title="Ver carrito" variant="secondary" onPress={() => router.push(`/store/${slug}/cart`)} style={{ marginTop: 8 }} />
       ) : null}
     </Screen>
   )

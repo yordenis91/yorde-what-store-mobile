@@ -2,7 +2,7 @@ import React from 'react'
 import { FlatList, Pressable, View } from 'react-native'
 import { Redirect, router, useLocalSearchParams } from 'expo-router'
 import { Badge, Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
-import { formatMoney, useCustomerAuthStore } from '@yws/shared'
+import { formatMoney, ORDER_STATUS_LABEL, useCustomerAuthStore } from '@yws/shared'
 import { useMyOrders, useTenant } from '../../../../../src/hooks/queries'
 
 export default function MyOrdersScreen() {
@@ -20,13 +20,13 @@ export default function MyOrdersScreen() {
   return (
     <Screen>
       <Text variant="title" style={{ marginBottom: 12 }}>
-        My orders
+        Mis pedidos
       </Text>
       <FlatList
         data={data?.items ?? []}
         keyExtractor={(o) => o.id}
         contentContainerStyle={{ gap: 10 }}
-        ListEmptyComponent={<EmptyState title="No orders yet" />}
+        ListEmptyComponent={<EmptyState title="Todavía no hay pedidos" />}
         renderItem={({ item }) => (
           <Pressable onPress={() => router.push(`/store/${slug}/orders/${item.id}`)}>
             <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -36,7 +36,7 @@ export default function MyOrdersScreen() {
                   {formatMoney(item.grandTotal, tenant)}
                 </Text>
               </View>
-              <Badge label={item.status} tone="info" />
+              <Badge label={ORDER_STATUS_LABEL[item.status]} tone="info" />
             </Card>
           </Pressable>
         )}

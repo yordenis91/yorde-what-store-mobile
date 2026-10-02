@@ -35,20 +35,20 @@ export default function SettingsScreen() {
   return (
     <Screen>
       <Text variant="title" style={{ marginBottom: 16 }}>
-        Settings
+        Ajustes
       </Text>
       <Card style={{ gap: 4, marginBottom: 12 }}>
         <Text weight="semibold">{user?.name}</Text>
         <Text color="muted">{user?.email}</Text>
       </Card>
       <Card style={{ gap: 4, marginBottom: 12 }}>
-        <Text weight="semibold">Store</Text>
+        <Text weight="semibold">Tienda</Text>
         <Text color="muted">{tenant?.name}</Text>
       </Card>
       {tenants.length > 1 ? (
-        <Button title="Switch store" variant="secondary" onPress={() => router.push('/select-tenant')} style={{ marginBottom: 12 }} />
+        <Button title="Cambiar de tienda" variant="secondary" onPress={() => router.push('/select-tenant')} style={{ marginBottom: 12 }} />
       ) : null}
-      <Button title="Log out" variant="danger" onPress={onLogout} loading={loggingOut} />
+      <Button title="Cerrar sesión" variant="danger" onPress={onLogout} loading={loggingOut} />
     </Screen>
   )
 }

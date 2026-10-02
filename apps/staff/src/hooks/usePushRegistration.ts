@@ -36,12 +36,12 @@ export function usePushRegistration() {
     hasBeenPromptedForPush().then((alreadyPrompted) => {
       if (alreadyPrompted) return
       Alert.alert(
-        'Stay on top of new orders',
-        'Get notified the moment a new order comes in — even when the app is closed.',
+        'Enterate de cada pedido nuevo',
+        'Recibí un aviso apenas entra un pedido, aunque la app esté cerrada.',
         [
-          { text: 'Not now', style: 'cancel', onPress: () => markPromptedForPush() },
+          { text: 'Ahora no', style: 'cancel', onPress: () => markPromptedForPush() },
           {
-            text: 'Enable notifications',
+            text: 'Activar notificaciones',
             onPress: () => {
               registerDevice()
                 .catch(() => undefined)

@@ -52,7 +52,7 @@ export default function CheckoutScreen() {
   if (items.length === 0) {
     return (
       <Screen>
-        <EmptyState title="Your cart is empty" />
+        <EmptyState title="Tu carrito está vacío" />
       </Screen>
     )
   }
@@ -76,7 +76,7 @@ export default function CheckoutScreen() {
 
   async function onPlaceOrder() {
     if (!name.trim()) {
-      setError('Enter your name')
+      setError('Ingresá tu nombre')
       return
     }
     setLoading(true)
@@ -92,7 +92,7 @@ export default function CheckoutScreen() {
         items: items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
       })
     } catch (err) {
-      setError(extractErrorMessage(err, 'Could not place your order. Please try again.'))
+      setError(extractErrorMessage(err, 'No pudimos registrar tu pedido. Intentá de nuevo.'))
       setLoading(false)
       return
     }
@@ -112,23 +112,23 @@ export default function CheckoutScreen() {
   return (
     <Screen scroll>
       <Text variant="title" style={{ marginBottom: 16 }}>
-        Checkout
+        Finalizar compra
       </Text>
 
       {stockIssues.length > 0 ? (
         <Card style={{ gap: 6, marginBottom: 12 }}>
           <Text weight="semibold" color="danger">
-            Some items are no longer available in that quantity
+            El stock cambió mientras comprabas
           </Text>
           {stockIssues.map((issue) => (
             <Text key={`${issue.productId}-${issue.variantId ?? ''}`} variant="caption">
               {issue.available > 0
-                ? `${issue.name}: only ${issue.available} left`
-                : `${issue.name}: out of stock`}
+                ? `${issue.name}: quedan solo ${issue.available}`
+                : `${issue.name}: sin stock`}
             </Text>
           ))}
           <Button
-            title="Fix in cart"
+            title="Ajustar en el carrito"
             variant="secondary"
             onPress={() => router.push(`/store/${slug}/cart`)}
           />
@@ -136,25 +136,25 @@ export default function CheckoutScreen() {
       ) : null}
 
       <Card style={{ gap: 12, marginBottom: 12 }}>
-        <Text weight="semibold">Coupon</Text>
+        <Text weight="semibold">Cupón</Text>
         {couponCode ? (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text>
-              {quote.data?.coupon ? `${quote.data.coupon.code} applied` : `Checking ${couponCode}…`}
+              {quote.data?.coupon ? `Cupón ${quote.data.coupon.code} aplicado` : `Verificando ${couponCode}…`}
             </Text>
-            <Button title="Remove" variant="ghost" fullWidth={false} onPress={() => setCoupon(null)} />
+            <Button title="Quitar" variant="ghost" fullWidth={false} onPress={() => setCoupon(null)} />
           </View>
         ) : (
           <>
             <Input
-              placeholder="Coupon code"
+              placeholder="Código de cupón"
               autoCapitalize="characters"
               value={couponInput}
               onChangeText={setCouponInput}
             />
             {couponError ? <Text color="danger">{couponError}</Text> : null}
             <Button
-              title="Apply"
+              title="Aplicar"
               variant="secondary"
               disabled={!couponInput.trim()}
               onPress={onApplyCoupon}
@@ -168,31 +168,31 @@ export default function CheckoutScreen() {
           <>
             <SummaryRow label="Subtotal" value={formatMoney(quote.data.subtotal, tenant)} />
             {quote.data.taxTotal > 0 ? (
-              <SummaryRow label="Tax" value={formatMoney(quote.data.taxTotal, tenant)} />
+              <SummaryRow label="Impuestos" value={formatMoney(quote.data.taxTotal, tenant)} />
             ) : null}
             {quote.data.discountTotal > 0 ? (
-              <SummaryRow label="Discount" value={`−${formatMoney(quote.data.discountTotal, tenant)}`} />
+              <SummaryRow label="Descuento" value={`−${formatMoney(quote.data.discountTotal, tenant)}`} />
             ) : null}
             {quote.data.shippingTotal > 0 ? (
-              <SummaryRow label="Shipping" value={formatMoney(quote.data.shippingTotal, tenant)} />
+              <SummaryRow label="Envío" value={formatMoney(quote.data.shippingTotal, tenant)} />
             ) : null}
             <SummaryRow label="Total" value={formatMoney(quote.data.grandTotal, tenant)} strong />
           </>
         ) : quote.isError ? (
           <>
-            <Text color="danger">Couldn't calculate your total.</Text>
-            <Button title="Try again" variant="secondary" onPress={() => quote.refetch()} />
+            <Text color="danger">No pudimos calcular el total.</Text>
+            <Button title="Intentar de nuevo" variant="secondary" onPress={() => quote.refetch()} />
           </>
         ) : (
-          <Text color="muted">Calculating your total…</Text>
+          <Text color="muted">Calculando el total…</Text>
         )}
       </Card>
 
       <Card style={{ gap: 12 }}>
-        <Input label="Full name" value={name} onChangeText={setName} />
-        <Input label="Phone" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+        <Input label="Nombre completo" value={name} onChangeText={setName} />
+        <Input label="Teléfono" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
         <Input
-          label="Email (optional)"
+          label="Email (opcional)"
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
@@ -200,11 +200,11 @@ export default function CheckoutScreen() {
         />
         {tenant?.whatsappEnabled ? (
           <Text color="muted" variant="caption">
-            You'll be taken to WhatsApp to confirm your order with {tenant.name}.
+            Te vamos a llevar a WhatsApp para confirmar tu pedido con {tenant.name}.
           </Text>
         ) : null}
         {error ? <Text color="danger">{error}</Text> : null}
-        <Button title="Place order" onPress={onPlaceOrder} loading={loading} disabled={!canPlaceOrder} />
+        <Button title="Confirmar pedido" onPress={onPlaceOrder} loading={loading} disabled={!canPlaceOrder} />
       </Card>
     </Screen>
   )

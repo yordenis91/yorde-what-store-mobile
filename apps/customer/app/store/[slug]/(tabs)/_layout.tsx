@@ -15,10 +15,10 @@ export default function StoreTabsLayout() {
         tabBarInactiveTintColor: theme.colors.textMuted,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Shop' }} />
-      <Tabs.Screen name="cart" options={{ title: 'Cart', tabBarBadge: itemCount > 0 ? itemCount : undefined }} />
-      <Tabs.Screen name="orders/index" options={{ title: 'Orders' }} />
-      <Tabs.Screen name="account" options={{ title: 'Account' }} />
+      <Tabs.Screen name="index" options={{ title: 'Tienda' }} />
+      <Tabs.Screen name="cart" options={{ title: 'Carrito', tabBarBadge: itemCount > 0 ? itemCount : undefined }} />
+      <Tabs.Screen name="orders/index" options={{ title: 'Pedidos' }} />
+      <Tabs.Screen name="account" options={{ title: 'Cuenta' }} />
     </Tabs>
   )
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { FlatList, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
-import { extractErrorMessage, useStaffAuthStore } from '@yws/shared'
+import { extractErrorMessage, TENANT_ROLE_LABEL, useStaffAuthStore } from '@yws/shared'
 import { staffApi } from '../src/lib/api'
 
 /** Shown after login when the user belongs to more than one tenant (or none yet is active). */
@@ -24,7 +24,7 @@ export default function SelectTenantScreen() {
       setActiveTenant(tenant)
       router.replace('/(tabs)/dashboard')
     } catch (err) {
-      setError(extractErrorMessage(err, "Couldn't open that store. Please try again."))
+      setError(extractErrorMessage(err, 'No pudimos abrir esa tienda. Intentá de nuevo.'))
     } finally {
       setSwitching(false)
     }
@@ -35,7 +35,7 @@ export default function SelectTenantScreen() {
   if (tenants.length === 0) {
     return (
       <Screen>
-        <EmptyState title="No stores yet" description={`Hi ${user?.name ?? ''}, you're not a member of any store yet.`} />
+        <EmptyState title="Todavía no tenés tiendas" description={`Hola ${user?.name ?? ''}, todavía no sos parte de ninguna tienda.`} />
       </Screen>
     )
   }
@@ -43,7 +43,7 @@ export default function SelectTenantScreen() {
   return (
     <Screen>
       <Text variant="title" style={{ marginBottom: 16 }}>
-        Choose a store
+        Elegí una tienda
       </Text>
       {error ? (
         <Text color="danger" style={{ marginBottom: 12 }}>
@@ -59,7 +59,7 @@ export default function SelectTenantScreen() {
             <Card>
               <Text weight="semibold">{item.name}</Text>
               <Text color="muted" variant="caption">
-                {item.myRole ?? 'STAFF'}
+                {TENANT_ROLE_LABEL[item.myRole ?? 'STAFF']}
               </Text>
             </Card>
           </Pressable>

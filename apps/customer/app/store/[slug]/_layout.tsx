@@ -40,7 +40,7 @@ export default function StoreLayout() {
   if (isError || !tenant) {
     return (
       <Screen>
-        <EmptyState title="Store not found" description={`No active store at "${slug}".`} />
+        <EmptyState title="Tienda no encontrada" description={`No hay ninguna tienda activa en "${slug}".`} />
       </Screen>
     )
   }

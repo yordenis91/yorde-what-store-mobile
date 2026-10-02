@@ -1,39 +1,44 @@
 import { z } from 'zod'
 
+const email = z.string().email('Ingresá un email válido')
+
 export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1, 'Password is required'),
+  email,
+  password: z.string().min(1, 'Ingresá tu contraseña'),
 })
 export type LoginFormValues = z.infer<typeof loginSchema>
 
 export const staffRegisterSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email(),
-  password: z.string().min(8, 'At least 8 characters'),
-  storeName: z.string().min(1, 'Store name is required'),
+  name: z.string().min(1, 'Ingresá tu nombre'),
+  email,
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  storeName: z.string().min(1, 'Ingresá el nombre de la tienda'),
   storeSlug: z
     .string()
-    .min(3, 'At least 3 characters')
-    .regex(/^[a-z0-9-]+$/, 'Lowercase letters, numbers and hyphens only'),
+    .min(3, 'Al menos 3 caracteres')
+    .regex(/^[a-z0-9-]+$/, 'Solo letras minúsculas, números y guiones'),
 })
 export type StaffRegisterFormValues = z.infer<typeof staffRegisterSchema>
 
 export const customerRegisterSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email().optional().or(z.literal('')),
+  name: z.string().min(1, 'Ingresá tu nombre'),
+  email: email.optional().or(z.literal('')),
   phone: z.string().optional(),
-  password: z.string().min(8, 'At least 8 characters'),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
 })
 export type CustomerRegisterFormValues = z.infer<typeof customerRegisterSchema>
 
 export const storeSlugSchema = z
   .string()
   .trim()
-  .min(1, 'Enter a store name or link')
+  .min(1, 'Ingresá el nombre o el link de una tienda')
   .transform((value, ctx) => {
     const slug = extractStoreSlug(value.toLowerCase())
     if (!slug) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "That doesn't look like a store name or link" })
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Eso no parece el nombre ni el link de una tienda',
+      })
       return z.NEVER
     }
     return slug

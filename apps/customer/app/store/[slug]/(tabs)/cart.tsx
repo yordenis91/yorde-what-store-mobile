@@ -17,7 +17,7 @@ export default function CartScreen() {
   if (items.length === 0) {
     return (
       <Screen>
-        <EmptyState title="Your cart is empty" actionLabel="Browse products" onAction={() => router.push(`/store/${slug}`)} />
+        <EmptyState title="Tu carrito está vacío" actionLabel="Ver productos" onAction={() => router.push(`/store/${slug}`)} />
       </Screen>
     )
   }
@@ -25,7 +25,7 @@ export default function CartScreen() {
   return (
     <Screen>
       <Text variant="title" style={{ marginBottom: 12 }}>
-        Cart
+        Carrito
       </Text>
       <FlatList
         data={items}
@@ -59,7 +59,7 @@ export default function CartScreen() {
           <Text weight="semibold">Subtotal</Text>
           <Text weight="semibold">{formatMoney(total, tenant)}</Text>
         </View>
-        <Button title="Checkout" onPress={() => router.push(`/store/${slug}/checkout`)} />
+        <Button title="Finalizar compra" onPress={() => router.push(`/store/${slug}/checkout`)} />
       </View>
     </Screen>
   )

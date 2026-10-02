@@ -15,9 +15,9 @@ export default function ProductsScreen() {
   return (
     <Screen>
       <Text variant="title" style={{ marginBottom: 12 }}>
-        Products
+        Productos
       </Text>
-      <Input placeholder="Search products" value={search} onChangeText={setSearch} style={{ marginBottom: 12 }} />
+      <Input placeholder="Buscar productos" value={search} onChangeText={setSearch} style={{ marginBottom: 12 }} />
       {isLoading ? (
         <Spinner fullScreen />
       ) : (
@@ -27,19 +27,19 @@ export default function ProductsScreen() {
           onRefresh={onRefresh}
           keyExtractor={(p) => p.id}
           contentContainerStyle={{ gap: 10 }}
-          ListEmptyComponent={<EmptyState title="No products" description="Products you add on the web dashboard will show up here." />}
+          ListEmptyComponent={<EmptyState title="No hay productos" description="Los productos que cargues desde el panel web van a aparecer acá." />}
           renderItem={({ item }) => (
             <Pressable onPress={() => router.push(`/(tabs)/products/${item.id}`)}>
               <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text weight="semibold">{item.name}</Text>
                   <Text color="muted" variant="caption">
-                    {item.sku ?? 'No SKU'} · qty {item.quantity}
+                    {item.sku ?? 'Sin SKU'} · stock {item.quantity}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
                   <Text weight="semibold">{formatMoney(item.price, tenant)}</Text>
-                  <Badge label={item.isPublished ? 'Published' : 'Draft'} tone={item.isPublished ? 'success' : 'neutral'} />
+                  <Badge label={item.isPublished ? 'Publicado' : 'Borrador'} tone={item.isPublished ? 'success' : 'neutral'} />
                 </View>
               </Card>
             </Pressable>

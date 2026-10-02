@@ -17,27 +17,27 @@ export default function OrderConfirmedScreen() {
   return (
     <Screen>
       <Card style={{ gap: 12, marginTop: 40 }}>
-        <Text variant="title">Order placed!</Text>
+        <Text variant="title">¡Pedido realizado!</Text>
         {whatsappUrl ? (
           <>
             {/* The store only hears about a WhatsApp order once the customer sends the
                 pre-filled message — checkout opens it, but that can fail or be dismissed. */}
             <Text color="muted">
-              Order #{label} is saved. Send the message in WhatsApp to confirm it with the store.
+              Guardamos tu pedido #{label}. Enviá el mensaje de WhatsApp para confirmarlo con la tienda.
             </Text>
-            <Button title="Open WhatsApp" onPress={() => Linking.openURL(whatsappUrl).catch(() => undefined)} />
+            <Button title="Abrir WhatsApp" onPress={() => Linking.openURL(whatsappUrl).catch(() => undefined)} />
           </>
         ) : (
-          <Text color="muted">Order #{label} was sent to the store. They'll confirm it with you shortly.</Text>
+          <Text color="muted">Tu pedido #{label} fue enviado a la tienda. Te lo van a confirmar en breve.</Text>
         )}
         <Button
-          title="Continue shopping"
+          title="Seguir comprando"
           variant={whatsappUrl ? 'secondary' : 'primary'}
           onPress={() => router.replace(`/store/${slug}`)}
         />
         {/* Order history needs an account — a guest checkout would just bounce to login. */}
         {customer ? (
-          <Button title="View my orders" variant="secondary" onPress={() => router.replace(`/store/${slug}/orders`)} />
+          <Button title="Ver mis pedidos" variant="secondary" onPress={() => router.replace(`/store/${slug}/orders`)} />
         ) : null}
       </Card>
     </Screen>

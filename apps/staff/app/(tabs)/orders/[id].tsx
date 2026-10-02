@@ -2,7 +2,7 @@ import React from 'react'
 import { View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { Badge, Button, Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
-import { formatMoney, useStaffAuthStore, type OrderStatus } from '@yws/shared'
+import { formatMoney, ORDER_STATUS_LABEL, useStaffAuthStore, type OrderStatus } from '@yws/shared'
 import { useOrder, useUpdateOrderStatus } from '../../../src/hooks/queries'
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -18,21 +18,21 @@ export default function OrderDetailScreen() {
   const updateStatus = useUpdateOrderStatus()
 
   if (isLoading) return <Spinner fullScreen />
-  if (!order) return <EmptyState title="Order not found" />
+  if (!order) return <EmptyState title="Pedido no encontrado" />
 
   const nextStatus = NEXT_STATUS[order.status]
 
   return (
     <Screen scroll>
       <Text variant="title">#{order.orderNumber}</Text>
-      <Badge label={order.status} tone="info" />
+      <Badge label={ORDER_STATUS_LABEL[order.status]} tone="info" />
       <Card style={{ marginTop: 16, gap: 8 }}>
-        <Text weight="semibold">Customer</Text>
+        <Text weight="semibold">Cliente</Text>
         <Text>{order.customerName}</Text>
         {order.customerPhone ? <Text color="muted">{order.customerPhone}</Text> : null}
       </Card>
       <Card style={{ marginTop: 12, gap: 8 }}>
-        <Text weight="semibold">Items</Text>
+        <Text weight="semibold">Productos</Text>
         {order.items.map((item) => (
           <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text>
@@ -49,7 +49,7 @@ export default function OrderDetailScreen() {
       </Card>
       {nextStatus ? (
         <Button
-          title={`Mark as ${nextStatus}`}
+          title={`Marcar como ${ORDER_STATUS_LABEL[nextStatus].toLowerCase()}`}
           onPress={() => updateStatus.mutate({ id: order.id, status: nextStatus })}
           loading={updateStatus.isPending}
           style={{ marginTop: 16 }}
