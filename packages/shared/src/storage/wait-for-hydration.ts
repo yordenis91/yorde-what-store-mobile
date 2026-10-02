@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 interface PersistCapable {
   persist: {
     hasHydrated: () => boolean
@@ -22,4 +24,22 @@ export function waitForHydration(store: PersistCapable): Promise<void> {
       resolve()
     })
   })
+}
+
+/**
+ * Render-time counterpart of `waitForHydration`: false until the store has
+ * read its storage engine. Gate anything that both reads and writes persisted
+ * state on it — a write made before hydration finishes is silently
+ * overwritten by the persisted value once it does.
+ */
+export function useHasHydrated(store: PersistCapable): boolean {
+  const [hydrated, setHydrated] = useState(() => store.persist.hasHydrated())
+  useEffect(() => {
+    if (store.persist.hasHydrated()) {
+      setHydrated(true)
+      return
+    }
+    return store.persist.onFinishHydration(() => setHydrated(true))
+  }, [store])
+  return hydrated
 }

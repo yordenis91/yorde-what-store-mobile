@@ -42,7 +42,13 @@ export default function CartScreen() {
             <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
               <Button title="-" fullWidth={false} variant="secondary" onPress={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)} />
               <Text>{item.quantity}</Text>
-              <Button title="+" fullWidth={false} variant="secondary" onPress={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)} />
+              <Button
+                title="+"
+                fullWidth={false}
+                variant="secondary"
+                disabled={item.maxQuantity !== undefined && item.quantity >= item.maxQuantity}
+                onPress={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
+              />
               <Button title="✕" fullWidth={false} variant="ghost" onPress={() => removeItem(item.productId, item.variantId)} />
             </View>
           </Card>

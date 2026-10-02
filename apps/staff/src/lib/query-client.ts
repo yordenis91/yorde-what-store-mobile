@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { useStaffAuthStore } from '@yws/shared'
+import './app-focus'
 
 export const queryClient = new QueryClient({
   defaultOptions: {

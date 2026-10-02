@@ -53,6 +53,10 @@ export type CreateOrderResult =
  * Rotates the mobile-safe refresh token — see `staff-api.ts`'s
  * `refreshStaffToken` doc comment for the full rationale (same design, this
  * realm's own endpoint and store).
+ *
+ * The session is scoped to `tenantSlug`: if the customer switches stores
+ * while this is in flight (`setTenantSlug` already wiped the old session),
+ * the late answer is dropped instead of reinstating store A's session in B.
  */
 async function refreshCustomerToken(baseURL: string, tenantSlug: string | null): Promise<string | null> {
   const refreshToken = useCustomerAuthStore.getState().refreshToken
@@ -64,13 +68,18 @@ async function refreshCustomerToken(baseURL: string, tenantSlug: string | null):
       { refreshToken, deviceId },
       { headers: tenantSlug ? { 'X-Tenant-ID': tenantSlug } : undefined },
     )
+    if (!stillOn(tenantSlug)) return null
     useCustomerAuthStore.getState().setRefreshToken(data.data.refreshToken)
     return data.data.accessToken
   } catch (error) {
     if (!isRefreshRejected(error)) throw error
-    useCustomerAuthStore.getState().setRefreshToken(null)
+    if (stillOn(tenantSlug)) useCustomerAuthStore.getState().setRefreshToken(null)
     return null
   }
+}
+
+function stillOn(tenantSlug: string | null): boolean {
+  return useCustomerAuthStore.getState().tenantSlug === tenantSlug
 }
 
 /** Persists `mobileRefreshToken` from a register/login response, if present, and strips it from the returned shape the caller sees. */
@@ -116,7 +125,9 @@ export function createCustomerApi(baseURL: string) {
         const accessToken = await refreshCustomerToken(baseURL, tenantSlug)
         if (!accessToken) return null
         useCustomerAuthStore.getState().setAccessToken(accessToken)
-        return unwrap<Customer>(client.get('/storefront/customers/me'))
+        const customer = await unwrap<Customer>(client.get('/storefront/customers/me'))
+        // Same guard as refreshCustomerToken: a store switch mid-flight voids this session.
+        return stillOn(tenantSlug) ? customer : null
       },
       register: async (payload: CustomerRegisterPayload) => {
         const deviceId = await getDeviceId()

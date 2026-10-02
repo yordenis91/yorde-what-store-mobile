@@ -10,12 +10,17 @@ export default function ProductDetailScreen() {
   const { data: tenant } = useTenant(slug)
   const { data: product, isLoading } = useStorefrontProduct(slug, id)
   const addItem = useCartStore((s) => s.addItem)
+  const inCart = useCartStore((s) => s.items.find((i) => i.productId === id && !i.variantId)?.quantity ?? 0)
   const [added, setAdded] = useState(false)
 
   if (isLoading) return <Spinner fullScreen />
   if (!product) return <EmptyState title="Product not found" />
 
   const cover = product.images.find((i) => i.isCover) ?? product.images[0]
+  // Stock only limits the cart when the store tracks inventory — mirrors the web client.
+  const stock = tenant?.tracksInventory ? product.quantity : undefined
+  const soldOut = stock !== undefined && stock <= 0
+  const allInCart = stock !== undefined && !soldOut && inCart >= stock
 
   function onAddToCart() {
     if (!product) return
@@ -25,7 +30,7 @@ export default function ProductDetailScreen() {
       unitPrice: Number.parseFloat(product.price),
       quantity: 1,
       imageUrl: cover?.url,
-      maxQuantity: product.quantity || undefined,
+      maxQuantity: stock,
     })
     setAdded(true)
   }
@@ -39,10 +44,10 @@ export default function ProductDetailScreen() {
         {product.description ? <Text color="muted">{product.description}</Text> : null}
       </View>
       <Button
-        title={added ? 'Added to cart' : 'Add to cart'}
+        title={soldOut ? 'Out of stock' : allInCart ? 'All available units are in your cart' : added ? 'Added to cart' : 'Add to cart'}
         onPress={onAddToCart}
         style={{ marginTop: 20 }}
-        disabled={product.hasVariants}
+        disabled={product.hasVariants || soldOut || allInCart}
       />
       {product.hasVariants ? (
         <Text color="muted" variant="caption" style={{ marginTop: 8, textAlign: 'center' }}>

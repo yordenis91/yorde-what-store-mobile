@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react'
-import { View } from 'react-native'
+import { RefreshControl, View } from 'react-native'
 import { Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
 import { formatMoney, useStaffAuthStore } from '@yws/shared'
 import { useDashboard } from '../../src/hooks/queries'
 import { usePushRegistration } from '../../src/hooks/usePushRegistration'
+import { useRefreshByUser } from '../../src/hooks/useRefreshByUser'
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
@@ -18,7 +19,8 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 
 export default function DashboardScreen() {
   const tenant = useStaffAuthStore((s) => s.activeTenant)
-  const { data, isLoading, isError } = useDashboard('7d')
+  const { data, isLoading, isError, refetch } = useDashboard('7d')
+  const { refreshing, onRefresh } = useRefreshByUser(refetch)
   const { promptIfNeeded } = usePushRegistration()
 
   useEffect(() => {
@@ -26,10 +28,21 @@ export default function DashboardScreen() {
   }, [data, promptIfNeeded])
 
   if (isLoading) return <Spinner fullScreen />
-  if (isError || !data) return <EmptyState title="Couldn't load your dashboard" description="Pull to refresh, or check your connection." />
+  if (isError || !data) {
+    return (
+      <Screen>
+        <EmptyState
+          title="Couldn't load your dashboard"
+          description="Check your connection and try again."
+          actionLabel="Try again"
+          onAction={() => refetch()}
+        />
+      </Screen>
+    )
+  }
 
   return (
-    <Screen scroll>
+    <Screen scroll refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <Text variant="title" style={{ marginBottom: 4 }}>
         {tenant?.name ?? 'Dashboard'}
       </Text>

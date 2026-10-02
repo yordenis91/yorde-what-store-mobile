@@ -47,6 +47,37 @@ describe('useCartStore', () => {
     expect(items()).toEqual([shirt])
   })
 
+  describe('stock limits', () => {
+    const limited: CartItem = { ...shirt, maxQuantity: 3 }
+
+    it('caps a new line at the stock', () => {
+      useCartStore.getState().addItem({ ...limited, quantity: 5 })
+      expect(items()[0]!.quantity).toBe(3)
+    })
+
+    it('caps repeated adds, using the freshest stock figure', () => {
+      useCartStore.getState().addItem({ ...limited, quantity: 2 })
+      useCartStore.getState().addItem({ ...limited, maxQuantity: 2 })
+      expect(items()[0]).toMatchObject({ quantity: 2, maxQuantity: 2 })
+    })
+
+    it('caps quantity updates', () => {
+      useCartStore.getState().addItem(limited)
+      useCartStore.getState().updateQuantity('p1', undefined, 10)
+      expect(items()[0]!.quantity).toBe(3)
+    })
+
+    it('ignores an add when nothing is in stock', () => {
+      useCartStore.getState().addItem({ ...shirt, maxQuantity: 0 })
+      expect(items()).toEqual([])
+    })
+
+    it('has no cap when the store does not track inventory', () => {
+      useCartStore.getState().addItem({ ...shirt, quantity: 50 })
+      expect(items()[0]!.quantity).toBe(50)
+    })
+  })
+
   it('empties the cart and coupon when switching to a different store', () => {
     useCartStore.getState().setTenantSlug('store-a')
     useCartStore.getState().addItem(shirt)

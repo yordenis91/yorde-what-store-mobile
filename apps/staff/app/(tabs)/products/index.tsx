@@ -4,11 +4,13 @@ import { router } from 'expo-router'
 import { Badge, Card, EmptyState, Input, Screen, Spinner, Text } from '@yws/ui'
 import { formatMoney, useStaffAuthStore } from '@yws/shared'
 import { useProducts } from '../../../src/hooks/queries'
+import { useRefreshByUser } from '../../../src/hooks/useRefreshByUser'
 
 export default function ProductsScreen() {
   const [search, setSearch] = useState('')
   const tenant = useStaffAuthStore((s) => s.activeTenant)
-  const { data, isLoading } = useProducts(search || undefined)
+  const { data, isLoading, refetch } = useProducts(search || undefined)
+  const { refreshing, onRefresh } = useRefreshByUser(refetch)
 
   return (
     <Screen>
@@ -21,6 +23,8 @@ export default function ProductsScreen() {
       ) : (
         <FlatList
           data={data?.items ?? []}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           keyExtractor={(p) => p.id}
           contentContainerStyle={{ gap: 10 }}
           ListEmptyComponent={<EmptyState title="No products" description="Products you add on the web dashboard will show up here." />}

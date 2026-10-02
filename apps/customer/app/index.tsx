@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { View } from 'react-native'
 import { Redirect, router } from 'expo-router'
-import { Button, Card, Input, Screen, Text } from '@yws/ui'
-import { extractErrorMessage, storeSlugSchema, useCustomerAuthStore } from '@yws/shared'
+import { Button, Card, Input, Screen, Spinner, Text } from '@yws/ui'
+import { extractErrorMessage, storeSlugSchema, useCustomerAuthStore, useHasHydrated } from '@yws/shared'
 import { customerApi } from '../src/lib/api'
 
 /**
@@ -11,12 +11,15 @@ import { customerApi } from '../src/lib/api'
  * into) a store slug, which `useCustomerAuthStore` then remembers.
  */
 export default function WelcomeScreen() {
+  const hydrated = useHasHydrated(useCustomerAuthStore)
   const rememberedSlug = useCustomerAuthStore((s) => s.tenantSlug)
   const setTenantSlug = useCustomerAuthStore((s) => s.setTenantSlug)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Before hydration the remembered store isn't known yet — don't flash the picker.
+  if (!hydrated) return <Spinner fullScreen />
   if (rememberedSlug) return <Redirect href={`/store/${rememberedSlug}`} />
 
   async function onContinue() {

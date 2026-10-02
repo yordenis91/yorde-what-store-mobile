@@ -59,6 +59,23 @@ describe('customerApi.auth.bootstrap', () => {
     await expect(api.auth.bootstrap()).rejects.toBeDefined()
     expect(useCustomerAuthStore.getState().refreshToken).toBe('rt-1')
   })
+
+  it.each([
+    ['refresh', '/storefront/customers/auth/mobile/refresh'],
+    ['profile', '/storefront/customers/me'],
+  ])('drops store A’s session if the customer moves to store B during the %s call', async (_label, slowPath) => {
+    useCustomerAuthStore.setState({ tenantSlug: 'store-a', refreshToken: 'rt-a' })
+    const fake = installFakeAdapter(ORIGIN, (req) => {
+      // The customer deep-links into another store while this request is in flight.
+      if (req.path === slowPath) useCustomerAuthStore.getState().setTenantSlug('store-b')
+      if (req.path.endsWith('/mobile/refresh')) return ok({ accessToken: 'at-1', refreshToken: 'rt-a2' })
+      return ok(customer)
+    })
+    restore = fake.restore
+
+    await expect(createCustomerApi(ORIGIN).auth.bootstrap()).resolves.toBeNull()
+    expect(useCustomerAuthStore.getState()).toMatchObject({ tenantSlug: 'store-b', refreshToken: null, customer: null })
+  })
 })
 
 describe('useCustomerAuthStore', () => {

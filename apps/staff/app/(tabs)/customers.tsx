@@ -2,10 +2,12 @@ import React, { useState } from 'react'
 import { FlatList, View } from 'react-native'
 import { Badge, Card, EmptyState, Input, Screen, Spinner, Text } from '@yws/ui'
 import { useCustomers } from '../../src/hooks/queries'
+import { useRefreshByUser } from '../../src/hooks/useRefreshByUser'
 
 export default function CustomersScreen() {
   const [search, setSearch] = useState('')
-  const { data, isLoading } = useCustomers(search || undefined)
+  const { data, isLoading, refetch } = useCustomers(search || undefined)
+  const { refreshing, onRefresh } = useRefreshByUser(refetch)
 
   return (
     <Screen>
@@ -18,6 +20,8 @@ export default function CustomersScreen() {
       ) : (
         <FlatList
           data={data?.items ?? []}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           keyExtractor={(c) => c.id}
           contentContainerStyle={{ gap: 10 }}
           ListEmptyComponent={<EmptyState title="No customers yet" />}

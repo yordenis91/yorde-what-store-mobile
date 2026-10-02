@@ -11,6 +11,7 @@ export interface CartItem {
   unitPrice: number
   quantity: number
   imageUrl?: string
+  /** Units in stock when the store tracks inventory; absent means no limit (same as the web client). */
   maxQuantity?: number
 }
 
@@ -30,6 +31,11 @@ function sameLine(a: CartItem, productId: string, variantId?: string) {
   return a.productId === productId && a.variantId === variantId
 }
 
+/** Caps a line at its stock. The api re-checks stock on order, but the cart shouldn't offer what can't be bought. */
+function capToStock(quantity: number, maxQuantity: number | undefined) {
+  return maxQuantity !== undefined ? Math.min(quantity, Math.max(maxQuantity, 0)) : quantity
+}
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -47,18 +53,24 @@ export const useCartStore = create<CartState>()(
           if (existing) {
             return {
               items: state.items.map((i) =>
-                sameLine(i, item.productId, item.variantId) ? { ...i, quantity: i.quantity + item.quantity } : i,
+                sameLine(i, item.productId, item.variantId)
+                  ? // The incoming item carries the freshest stock figure.
+                    { ...i, maxQuantity: item.maxQuantity, quantity: capToStock(i.quantity + item.quantity, item.maxQuantity) }
+                  : i,
               ),
             }
           }
-          return { items: [...state.items, item] }
+          const quantity = capToStock(item.quantity, item.maxQuantity)
+          return quantity > 0 ? { items: [...state.items, { ...item, quantity }] } : {}
         }),
       updateQuantity: (productId, variantId, quantity) =>
         set((state) => ({
           items:
             quantity <= 0
               ? state.items.filter((i) => !sameLine(i, productId, variantId))
-              : state.items.map((i) => (sameLine(i, productId, variantId) ? { ...i, quantity } : i)),
+              : state.items.map((i) =>
+                  sameLine(i, productId, variantId) ? { ...i, quantity: capToStock(quantity, i.maxQuantity) } : i,
+                ),
         })),
       removeItem: (productId, variantId) =>
         set((state) => ({ items: state.items.filter((i) => !sameLine(i, productId, variantId)) })),
