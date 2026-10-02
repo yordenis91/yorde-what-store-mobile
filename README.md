@@ -165,8 +165,11 @@ needs to change when that lands.
 - **App icons/splash screens** — `app.json` has no `icon`/`splash` keys yet
   (no brand assets available in this session); Expo will use its own
   placeholder until real assets are added.
-- **E2E/unit tests** — `jest`/`jest-expo` are wired into both apps'
-  `package.json` (`pnpm test`) but no test files exist yet.
+- **Screen and E2E tests** — `pnpm test` runs `packages/shared`'s unit
+  tests (api clients, refresh/session handling, stores, utils), which go
+  through a fake axios adapter (`src/test-utils/fake-adapter.ts`) instead of
+  the network. Both apps have `jest-expo` wired up but no screen tests yet,
+  and there's no E2E suite.
 
 ## Design tokens & theming
 

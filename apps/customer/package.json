@@ -10,7 +10,10 @@
     "build": "expo export",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest --passWithNoTests"
+  },
+  "jest": {
+    "preset": "jest-expo"
   },
   "dependencies": {
     "@babel/runtime": "^7.25.0",
