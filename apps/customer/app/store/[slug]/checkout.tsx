@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Linking } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Button, Card, EmptyState, Input, Screen, Text } from '@yws/ui'
-import { extractErrorMessage, useCartStore, type FulfillmentMethod } from '@yws/shared'
+import { extractErrorMessage, useCartStore, type CreateOrderResult, type FulfillmentMethod } from '@yws/shared'
 import { customerApi } from '../../../src/lib/api'
 import { useTenant } from '../../../src/hooks/queries'
 
@@ -39,8 +39,9 @@ export default function CheckoutScreen() {
     }
     setLoading(true)
     setError(null)
+    let result: CreateOrderResult
     try {
-      const result = await customerApi.orders.create({
+      result = await customerApi.orders.create({
         customerName: name,
         customerPhone: phone || undefined,
         customerEmail: email || undefined,
@@ -48,16 +49,22 @@ export default function CheckoutScreen() {
         fulfillmentMethod,
         items: items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
       })
-      clearCart()
-      if (result.fulfillment.type === 'WHATSAPP') {
-        await Linking.openURL(result.fulfillment.redirectUrl)
-      }
-      router.replace(`/store/${slug}/order-confirmed/${result.order.id}`)
     } catch (err) {
       setError(extractErrorMessage(err, 'Could not place your order. Please try again.'))
-    } finally {
       setLoading(false)
+      return
     }
+
+    // The order exists from here on — nothing below may report it as failed,
+    // or the customer would retry and place it twice. Opening WhatsApp is
+    // best-effort; the confirmation screen offers it again if it didn't open.
+    clearCart()
+    const whatsappUrl = result.fulfillment.type === 'WHATSAPP' ? result.fulfillment.redirectUrl : undefined
+    router.replace({
+      pathname: '/store/[slug]/order-confirmed/[id]',
+      params: { slug, id: result.order.id, orderNumber: result.order.orderNumber, whatsappUrl },
+    })
+    if (whatsappUrl) Linking.openURL(whatsappUrl).catch(() => undefined)
   }
 
   return (
