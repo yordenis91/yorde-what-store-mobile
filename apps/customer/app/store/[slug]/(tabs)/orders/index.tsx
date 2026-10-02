@@ -8,8 +8,11 @@ import { useMyOrders } from '../../../../../src/hooks/queries'
 export default function MyOrdersScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
   const customer = useCustomerAuthStore((s) => s.customer)
-  const { data, isLoading } = useMyOrders(slug)
+  const isBootstrapping = useCustomerAuthStore((s) => s.isBootstrapping)
+  const { data, isLoading } = useMyOrders(slug, !!customer)
 
+  // Don't bounce to login while a stored session is still being restored.
+  if (isBootstrapping) return <Spinner fullScreen />
   if (!customer) return <Redirect href={`/store/${slug}/auth/login`} />
   if (isLoading) return <Spinner fullScreen />
 

@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useStaffAuthStore } from '../stores/staff-auth.store'
-import { createHttpClient, unwrap } from './http-factory'
+import { createHttpClient, isRefreshRejected, unwrap } from './http-factory'
 import { getDeviceId } from '../utils/device-id'
 import type {
   ApiEnvelope,
@@ -34,7 +34,8 @@ export type LoginResult =
  * a mismatch (see its MobileRefreshDto), so presenting the right token from
  * a different install is treated the same as a stolen, reused token.
  * Returns null (and clears the stored refresh token) when there's nothing to
- * restore or the api rejects it — the caller routes to login either way.
+ * restore or the api rejects it — the caller routes to login. Throws, keeping
+ * the stored token, when the api simply couldn't be reached.
  */
 async function refreshStaffToken(baseURL: string): Promise<string | null> {
   const refreshToken = useStaffAuthStore.getState().refreshToken
@@ -47,7 +48,8 @@ async function refreshStaffToken(baseURL: string): Promise<string | null> {
     )
     useStaffAuthStore.getState().setRefreshToken(data.data.refreshToken)
     return data.data.accessToken
-  } catch {
+  } catch (error) {
+    if (!isRefreshRejected(error)) throw error
     useStaffAuthStore.getState().setRefreshToken(null)
     return null
   }
@@ -78,17 +80,31 @@ export function createStaffApi(baseURL: string) {
     authPathPrefix: 'auth/',
   })
 
+  async function switchTenant(tenantId: string) {
+    const deviceId = await getDeviceId()
+    const result = await unwrap<{ user: User; accessToken: string; mobileRefreshToken?: string }>(
+      client.post('/auth/switch-tenant', { tenantId, deviceId }),
+    )
+    return captureMobileRefreshToken(result)
+  }
+
   return {
     client,
     auth: {
       /**
        * Session restore on app start: rotates the persisted mobile refresh
-       * token (see `refreshStaffToken`) and, on success, loads the profile +
-       * tenant memberships. Returns null when there's no session to restore
-       * (never logged in on this device, or the refresh token was revoked/
-       * expired) — the caller routes to login.
+       * token (see `refreshStaffToken`), loads the profile + tenant
+       * memberships, and re-enters the store the seller last picked
+       * (`lastTenantId`, or the only one they have) through `switchTenant` —
+       * the same call the select-tenant screen makes, so the access token's
+       * tenant claims match the `X-Tenant-ID` header. `activeTenant` is null
+       * when there's no obvious store to reopen; the caller sends the user to
+       * pick one. Returns null when there's no session to restore (never
+       * logged in on this device, or the api rejected the refresh token) —
+       * the caller routes to login. Rejects when the api couldn't be reached;
+       * the stored session is kept for a retry.
        */
-      bootstrap: async (): Promise<{ user: User; tenants: Tenant[] } | null> => {
+      bootstrap: async (): Promise<{ user: User; tenants: Tenant[]; activeTenant: Tenant | null } | null> => {
         const accessToken = await refreshStaffToken(baseURL)
         if (!accessToken) return null
         useStaffAuthStore.getState().setAccessToken(accessToken)
@@ -96,7 +112,12 @@ export function createStaffApi(baseURL: string) {
           unwrap<User>(client.get('/auth/me')),
           unwrap<Tenant[]>(client.get('/tenants/me')),
         ])
-        return { user, tenants }
+        const lastTenantId = useStaffAuthStore.getState().lastTenantId
+        const activeTenant = tenants.find((t) => t.id === lastTenantId) ?? (tenants.length === 1 ? tenants[0]! : null)
+        if (!activeTenant) return { user, tenants, activeTenant: null }
+        const switched = await switchTenant(activeTenant.id)
+        useStaffAuthStore.getState().setAccessToken(switched.accessToken)
+        return { user: switched.user, tenants, activeTenant }
       },
       login: async (payload: LoginPayload) => {
         const deviceId = await getDeviceId()
@@ -135,13 +156,7 @@ export function createStaffApi(baseURL: string) {
           useStaffAuthStore.getState().setRefreshToken(null)
         }
       },
-      switchTenant: async (tenantId: string) => {
-        const deviceId = await getDeviceId()
-        const result = await unwrap<{ user: User; accessToken: string; mobileRefreshToken?: string }>(
-          client.post('/auth/switch-tenant', { tenantId, deviceId }),
-        )
-        return captureMobileRefreshToken(result)
-      },
+      switchTenant,
       forgotPassword: (email: string) => unwrap<{ sent: boolean }>(client.post('/auth/forgot-password', { email })),
       resetPassword: (token: string, password: string) =>
         unwrap<{ reset: boolean }>(client.post('/auth/reset-password', { token, password })),

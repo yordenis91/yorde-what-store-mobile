@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useCustomerAuthStore } from '../stores/customer-auth.store'
-import { createHttpClient, unwrap } from './http-factory'
+import { createHttpClient, isRefreshRejected, unwrap } from './http-factory'
 import { getDeviceId } from '../utils/device-id'
 import type { ApiEnvelope, Customer, CustomerOrderSummary, Order, PaginatedResult, Product, PublicTenant } from '../types/api'
 
@@ -66,7 +66,8 @@ async function refreshCustomerToken(baseURL: string, tenantSlug: string | null):
     )
     useCustomerAuthStore.getState().setRefreshToken(data.data.refreshToken)
     return data.data.accessToken
-  } catch {
+  } catch (error) {
+    if (!isRefreshRejected(error)) throw error
     useCustomerAuthStore.getState().setRefreshToken(null)
     return null
   }
@@ -104,7 +105,11 @@ export function createCustomerApi(baseURL: string) {
       bySlug: (slug: string) => unwrap<PublicTenant>(client.get(`/tenants/storefront/${slug}`)),
     },
     auth: {
-      /** Session restore on app start — same design as `staffApi.auth.bootstrap`. */
+      /**
+       * Session restore on app start — same design as `staffApi.auth.bootstrap`:
+       * null when there's no session (or the api rejected it), rejects when
+       * the api couldn't be reached, keeping the stored session for a retry.
+       */
       bootstrap: async (): Promise<Customer | null> => {
         const tenantSlug = useCustomerAuthStore.getState().tenantSlug
         if (!tenantSlug) return null
