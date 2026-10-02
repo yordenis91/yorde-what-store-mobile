@@ -39,12 +39,12 @@ export default function OrderDetailScreen() {
               {item.quantity}× {item.productName}
               {item.variantName ? ` (${item.variantName})` : ''}
             </Text>
-            <Text>{tenant ? formatMoney(item.lineTotal, tenant) : item.lineTotal}</Text>
+            <Text>{formatMoney(item.lineTotal, tenant)}</Text>
           </View>
         ))}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
           <Text weight="semibold">Total</Text>
-          <Text weight="semibold">{tenant ? formatMoney(order.grandTotal, tenant) : order.grandTotal}</Text>
+          <Text weight="semibold">{formatMoney(order.grandTotal, tenant)}</Text>
         </View>
       </Card>
       {nextStatus ? (

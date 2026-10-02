@@ -25,7 +25,7 @@ export default function ProductDetailScreen() {
       </View>
       <Card style={{ gap: 8, marginBottom: 12 }}>
         <Text weight="semibold">Price &amp; stock</Text>
-        <Text>{tenant ? formatMoney(product.price, tenant) : product.price}</Text>
+        <Text>{formatMoney(product.price, tenant)}</Text>
         <Text color="muted">{product.hasVariants ? `${product.variants.length} variants` : `Quantity: ${product.quantity}`}</Text>
       </Card>
       {product.description ? (

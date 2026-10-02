@@ -2,13 +2,14 @@ import React from 'react'
 import { FlatList, Pressable, View } from 'react-native'
 import { Redirect, router, useLocalSearchParams } from 'expo-router'
 import { Badge, Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
-import { useCustomerAuthStore } from '@yws/shared'
-import { useMyOrders } from '../../../../../src/hooks/queries'
+import { formatMoney, useCustomerAuthStore } from '@yws/shared'
+import { useMyOrders, useTenant } from '../../../../../src/hooks/queries'
 
 export default function MyOrdersScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
   const customer = useCustomerAuthStore((s) => s.customer)
   const isBootstrapping = useCustomerAuthStore((s) => s.isBootstrapping)
+  const { data: tenant } = useTenant(slug)
   const { data, isLoading } = useMyOrders(slug, !!customer)
 
   // Don't bounce to login while a stored session is still being restored.
@@ -32,7 +33,7 @@ export default function MyOrdersScreen() {
               <View style={{ gap: 2 }}>
                 <Text weight="semibold">#{item.orderNumber}</Text>
                 <Text color="muted" variant="caption">
-                  {item.currency} {item.grandTotal}
+                  {formatMoney(item.grandTotal, tenant)}
                 </Text>
               </View>
               <Badge label={item.status} tone="info" />

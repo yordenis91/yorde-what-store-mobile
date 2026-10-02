@@ -34,7 +34,7 @@ export default function ProductsScreen() {
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                  <Text weight="semibold">{tenant ? formatMoney(item.price, tenant) : item.price}</Text>
+                  <Text weight="semibold">{formatMoney(item.price, tenant)}</Text>
                   <Badge label={item.isPublished ? 'Published' : 'Draft'} tone={item.isPublished ? 'success' : 'neutral'} />
                 </View>
               </Card>

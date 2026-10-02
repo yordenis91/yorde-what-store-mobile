@@ -46,7 +46,7 @@ export default function CatalogScreen() {
                     <Text weight="semibold" numberOfLines={1}>
                       {item.name}
                     </Text>
-                    <Text color="muted">{tenant ? formatMoney(item.price, tenant) : item.price}</Text>
+                    <Text color="muted">{formatMoney(item.price, tenant)}</Text>
                   </View>
                 </Card>
               </Pressable>

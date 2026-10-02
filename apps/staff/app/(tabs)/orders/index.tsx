@@ -41,7 +41,7 @@ export default function OrdersScreen() {
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                  <Text weight="semibold">{tenant ? formatMoney(item.grandTotal, tenant) : item.grandTotal}</Text>
+                  <Text weight="semibold">{formatMoney(item.grandTotal, tenant)}</Text>
                   <Badge label={item.status} tone={STATUS_TONE[item.status]} />
                 </View>
               </Card>

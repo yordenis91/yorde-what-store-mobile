@@ -2,7 +2,7 @@ import React from 'react'
 import { FlatList, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Button, Card, EmptyState, Screen, Text } from '@yws/ui'
-import { useCartStore } from '@yws/shared'
+import { formatMoney, useCartStore } from '@yws/shared'
 import { useTenant } from '../../../../src/hooks/queries'
 
 export default function CartScreen() {
@@ -13,7 +13,6 @@ export default function CartScreen() {
   const removeItem = useCartStore((s) => s.removeItem)
 
   const total = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
-  const symbol = tenant?.currencySymbol ?? ''
 
   if (items.length === 0) {
     return (
@@ -37,8 +36,7 @@ export default function CartScreen() {
             <View style={{ flex: 1, gap: 2 }}>
               <Text weight="semibold">{item.name}</Text>
               <Text color="muted" variant="caption">
-                {symbol}
-                {item.unitPrice.toFixed(2)} × {item.quantity}
+                {formatMoney(item.unitPrice, tenant)} × {item.quantity}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -53,10 +51,7 @@ export default function CartScreen() {
       <View style={{ marginTop: 16, gap: 12 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <Text weight="semibold">Subtotal</Text>
-          <Text weight="semibold">
-            {symbol}
-            {total.toFixed(2)}
-          </Text>
+          <Text weight="semibold">{formatMoney(total, tenant)}</Text>
         </View>
         <Button title="Checkout" onPress={() => router.push(`/store/${slug}/checkout`)} />
       </View>

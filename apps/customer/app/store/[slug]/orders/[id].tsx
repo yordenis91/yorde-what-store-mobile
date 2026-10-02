@@ -2,10 +2,12 @@ import React from 'react'
 import { View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { Badge, Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
-import { useMyOrder } from '../../../../src/hooks/queries'
+import { formatMoney } from '@yws/shared'
+import { useMyOrder, useTenant } from '../../../../src/hooks/queries'
 
 export default function MyOrderDetailScreen() {
   const { slug, id } = useLocalSearchParams<{ slug: string; id: string }>()
+  const { data: tenant } = useTenant(slug)
   const { data: order, isLoading } = useMyOrder(slug, id)
 
   if (isLoading) return <Spinner fullScreen />
@@ -22,16 +24,12 @@ export default function MyOrderDetailScreen() {
               {item.quantity}× {item.productName}
               {item.variantName ? ` (${item.variantName})` : ''}
             </Text>
-            <Text>
-              {order.currency} {item.lineTotal}
-            </Text>
+            <Text>{formatMoney(item.lineTotal, tenant)}</Text>
           </View>
         ))}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
           <Text weight="semibold">Total</Text>
-          <Text weight="semibold">
-            {order.currency} {order.grandTotal}
-          </Text>
+          <Text weight="semibold">{formatMoney(order.grandTotal, tenant)}</Text>
         </View>
       </Card>
     </Screen>

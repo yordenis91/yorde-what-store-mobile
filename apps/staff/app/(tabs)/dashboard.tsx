@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { View } from 'react-native'
 import { Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
-import { useStaffAuthStore } from '@yws/shared'
+import { formatMoney, useStaffAuthStore } from '@yws/shared'
 import { useDashboard } from '../../src/hooks/queries'
 import { usePushRegistration } from '../../src/hooks/usePushRegistration'
 
@@ -38,7 +38,7 @@ export default function DashboardScreen() {
       </Text>
       <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
         <Stat label="Orders" value={data.periodOrders} />
-        <Stat label="Revenue" value={`${tenant?.currencySymbol ?? ''}${data.periodRevenue.toFixed(2)}`} />
+        <Stat label="Revenue" value={formatMoney(data.periodRevenue, tenant)} />
       </View>
       <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
         <Stat label="Pending orders" value={data.pendingOrders} />
