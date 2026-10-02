@@ -1,23 +1,53 @@
-import React, { useState } from 'react'
-import { Linking } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { Linking, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Button, Card, EmptyState, Input, Screen, Text } from '@yws/ui'
-import { extractErrorMessage, useCartStore, type CreateOrderResult, type FulfillmentMethod } from '@yws/shared'
+import {
+  extractErrorMessage,
+  formatMoney,
+  useCartStore,
+  type CreateOrderResult,
+  type FulfillmentMethod,
+} from '@yws/shared'
 import { customerApi } from '../../../src/lib/api'
-import { useTenant } from '../../../src/hooks/queries'
+import { useCheckoutQuote, useTenant } from '../../../src/hooks/queries'
+
+function SummaryRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  const weight = strong ? 'semibold' : undefined
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      <Text weight={weight}>{label}</Text>
+      <Text weight={weight}>{value}</Text>
+    </View>
+  )
+}
 
 export default function CheckoutScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
   const { data: tenant } = useTenant(slug)
   const items = useCartStore((s) => s.items)
   const couponCode = useCartStore((s) => s.couponCode)
+  const setCoupon = useCartStore((s) => s.setCoupon)
   const clearCart = useCartStore((s) => s.clear)
+  const quote = useCheckoutQuote(slug, items, couponCode)
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [couponInput, setCouponInput] = useState('')
+  const [couponError, setCouponError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // The server is the authority on whether a code applies, so a rejected one
+  // is dropped rather than left looking active (same as the web checkout).
+  const rejectedCoupon = quote.data?.couponError ?? null
+  useEffect(() => {
+    if (rejectedCoupon) {
+      setCouponError(rejectedCoupon)
+      setCoupon(null)
+    }
+  }, [rejectedCoupon, setCoupon])
 
   if (items.length === 0) {
     return (
@@ -31,6 +61,18 @@ export default function CheckoutScreen() {
   // yet — WhatsApp is the tenant's default channel and the one every tenant
   // has available, so it's the only path implemented for v1.
   const fulfillmentMethod: FulfillmentMethod = 'WHATSAPP'
+
+  // Reported by the quote so the customer finds out before submitting; order
+  // creation is what actually enforces it.
+  const stockIssues = quote.data?.stockIssues ?? []
+  const canPlaceOrder = !!quote.data && !quote.isFetching && stockIssues.length === 0
+
+  function onApplyCoupon() {
+    const code = couponInput.trim()
+    if (!code) return
+    setCouponError(null)
+    setCoupon(code)
+  }
 
   async function onPlaceOrder() {
     if (!name.trim()) {
@@ -72,17 +114,97 @@ export default function CheckoutScreen() {
       <Text variant="title" style={{ marginBottom: 16 }}>
         Checkout
       </Text>
+
+      {stockIssues.length > 0 ? (
+        <Card style={{ gap: 6, marginBottom: 12 }}>
+          <Text weight="semibold" color="danger">
+            Some items are no longer available in that quantity
+          </Text>
+          {stockIssues.map((issue) => (
+            <Text key={`${issue.productId}-${issue.variantId ?? ''}`} variant="caption">
+              {issue.available > 0
+                ? `${issue.name}: only ${issue.available} left`
+                : `${issue.name}: out of stock`}
+            </Text>
+          ))}
+          <Button
+            title="Fix in cart"
+            variant="secondary"
+            onPress={() => router.push(`/store/${slug}/cart`)}
+          />
+        </Card>
+      ) : null}
+
+      <Card style={{ gap: 12, marginBottom: 12 }}>
+        <Text weight="semibold">Coupon</Text>
+        {couponCode ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text>
+              {quote.data?.coupon ? `${quote.data.coupon.code} applied` : `Checking ${couponCode}…`}
+            </Text>
+            <Button title="Remove" variant="ghost" fullWidth={false} onPress={() => setCoupon(null)} />
+          </View>
+        ) : (
+          <>
+            <Input
+              placeholder="Coupon code"
+              autoCapitalize="characters"
+              value={couponInput}
+              onChangeText={setCouponInput}
+            />
+            {couponError ? <Text color="danger">{couponError}</Text> : null}
+            <Button
+              title="Apply"
+              variant="secondary"
+              disabled={!couponInput.trim()}
+              onPress={onApplyCoupon}
+            />
+          </>
+        )}
+      </Card>
+
+      <Card style={{ gap: 8, marginBottom: 12 }}>
+        {quote.data ? (
+          <>
+            <SummaryRow label="Subtotal" value={formatMoney(quote.data.subtotal, tenant)} />
+            {quote.data.taxTotal > 0 ? (
+              <SummaryRow label="Tax" value={formatMoney(quote.data.taxTotal, tenant)} />
+            ) : null}
+            {quote.data.discountTotal > 0 ? (
+              <SummaryRow label="Discount" value={`−${formatMoney(quote.data.discountTotal, tenant)}`} />
+            ) : null}
+            {quote.data.shippingTotal > 0 ? (
+              <SummaryRow label="Shipping" value={formatMoney(quote.data.shippingTotal, tenant)} />
+            ) : null}
+            <SummaryRow label="Total" value={formatMoney(quote.data.grandTotal, tenant)} strong />
+          </>
+        ) : quote.isError ? (
+          <>
+            <Text color="danger">Couldn't calculate your total.</Text>
+            <Button title="Try again" variant="secondary" onPress={() => quote.refetch()} />
+          </>
+        ) : (
+          <Text color="muted">Calculating your total…</Text>
+        )}
+      </Card>
+
       <Card style={{ gap: 12 }}>
         <Input label="Full name" value={name} onChangeText={setName} />
         <Input label="Phone" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
-        <Input label="Email (optional)" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+        <Input
+          label="Email (optional)"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
         {tenant?.whatsappEnabled ? (
           <Text color="muted" variant="caption">
             You'll be taken to WhatsApp to confirm your order with {tenant.name}.
           </Text>
         ) : null}
         {error ? <Text color="danger">{error}</Text> : null}
-        <Button title="Place order" onPress={onPlaceOrder} loading={loading} />
+        <Button title="Place order" onPress={onPlaceOrder} loading={loading} disabled={!canPlaceOrder} />
       </Card>
     </Screen>
   )

@@ -78,6 +78,24 @@ describe('customerApi.auth.bootstrap', () => {
   })
 })
 
+describe('customerApi.orders.quote', () => {
+  it('prices the cart with the coupon, scoped to the store', async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store' })
+    const quote = { grandTotal: 18, couponError: null }
+    const fake = installFakeAdapter(ORIGIN, () => ok(quote))
+    restore = fake.restore
+
+    const items = [{ productId: 'p1', quantity: 2 }]
+    await expect(createCustomerApi(ORIGIN).orders.quote({ items, couponCode: 'SAVE10' })).resolves.toEqual(quote)
+    expect(fake.requests[0]).toMatchObject({
+      method: 'POST',
+      path: '/storefront/orders/quote',
+      headers: { tenant: 'my-store' },
+      body: { items, couponCode: 'SAVE10' },
+    })
+  })
+})
+
 describe('useCustomerAuthStore', () => {
   it('drops the session when switching to a different store', () => {
     useCustomerAuthStore.setState({ tenantSlug: 'store-a', customer, accessToken: 'at', refreshToken: 'rt' })
