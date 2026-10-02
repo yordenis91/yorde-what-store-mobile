@@ -16,7 +16,7 @@ export default function CustomerLoginScreen() {
   async function onSubmit() {
     const parsed = loginSchema.safeParse({ email, password })
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid credentials')
+      setError(parsed.error.issues[0]?.message ?? 'Email o contraseña inválidos')
       return
     }
     setLoading(true)
@@ -26,7 +26,7 @@ export default function CustomerLoginScreen() {
       setSession(result)
       router.back()
     } catch (err) {
-      setError(extractErrorMessage(err, 'Could not sign in.'))
+      setError(extractErrorMessage(err, 'No pudimos iniciar sesión.'))
     } finally {
       setLoading(false)
     }
@@ -35,13 +35,13 @@ export default function CustomerLoginScreen() {
   return (
     <Screen>
       <View style={{ flex: 1, justifyContent: 'center', gap: 24 }}>
-        <Text variant="title">Sign in</Text>
+        <Text variant="title">Iniciar sesión</Text>
         <Card style={{ gap: 16 }}>
-          <Input label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
-          <Input label="Password" secureTextEntry value={password} onChangeText={setPassword} />
+          <Input label="Correo electrónico" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+          <Input label="Contraseña" secureTextEntry value={password} onChangeText={setPassword} />
           {error ? <Text color="danger">{error}</Text> : null}
-          <Button title="Sign in" onPress={onSubmit} loading={loading} />
-          <Button title="Create an account" variant="ghost" onPress={() => router.replace(`/store/${slug}/auth/register`)} />
+          <Button title="Iniciar sesión" onPress={onSubmit} loading={loading} />
+          <Button title="Crear una cuenta" variant="ghost" onPress={() => router.replace(`/store/${slug}/auth/register`)} />
         </Card>
       </View>
     </Screen>

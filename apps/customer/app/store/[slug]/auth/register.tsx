@@ -17,7 +17,7 @@ export default function CustomerRegisterScreen() {
   async function onSubmit() {
     const parsed = customerRegisterSchema.safeParse({ name, email, password })
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Check the form')
+      setError(parsed.error.issues[0]?.message ?? 'Revisá los datos del formulario')
       return
     }
     setLoading(true)
@@ -27,7 +27,7 @@ export default function CustomerRegisterScreen() {
       setSession(result)
       router.back()
     } catch (err) {
-      setError(extractErrorMessage(err, 'Could not create your account.'))
+      setError(extractErrorMessage(err, 'No pudimos crear tu cuenta.'))
     } finally {
       setLoading(false)
     }
@@ -36,14 +36,14 @@ export default function CustomerRegisterScreen() {
   return (
     <Screen scroll>
       <View style={{ flex: 1, justifyContent: 'center', gap: 24 }}>
-        <Text variant="title">Create account</Text>
+        <Text variant="title">Crear cuenta</Text>
         <Card style={{ gap: 16 }}>
-          <Input label="Name" value={name} onChangeText={setName} />
-          <Input label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
-          <Input label="Password" secureTextEntry value={password} onChangeText={setPassword} />
+          <Input label="Nombre" value={name} onChangeText={setName} />
+          <Input label="Correo electrónico" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+          <Input label="Contraseña" secureTextEntry value={password} onChangeText={setPassword} />
           {error ? <Text color="danger">{error}</Text> : null}
-          <Button title="Create account" onPress={onSubmit} loading={loading} />
-          <Button title="I already have an account" variant="ghost" onPress={() => router.replace(`/store/${slug}/auth/login`)} />
+          <Button title="Crear cuenta" onPress={onSubmit} loading={loading} />
+          <Button title="Ya tengo una cuenta" variant="ghost" onPress={() => router.replace(`/store/${slug}/auth/login`)} />
         </Card>
       </View>
     </Screen>

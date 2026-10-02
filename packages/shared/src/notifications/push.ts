@@ -11,28 +11,26 @@ Notifications.setNotificationHandler({
   }),
 })
 
-/**
- * Requests permission and returns this device's Expo push token, or null if
- * denied/unavailable (simulators, web).
- *
- * NOT wired to the backend yet — flagged in the mobile README's "Open backend
- * questions": `yorde-what-store-api` has no push-notification module or
- * device-token endpoint today (grepped for push/fcm/expo/device-token, none
- * found). Sending an order/payment push requires:
- *   1. An endpoint to register/unregister a device token per user (staff) or
- *      customer, tenant-scoped like everything else.
- *   2. The queue's `order-notification.processor.ts` (which already renders
- *      the WhatsApp/Telegram fulfillment message) to also fan out a push.
- * Call this once on app start once that lands; for now it's dead code kept
- * ready to wire up, not invoked from either app's root layout.
- */
-export async function registerForPushNotificationsAsync(): Promise<string | null> {
+async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
       importance: Notifications.AndroidImportance.DEFAULT,
     })
   }
+}
+
+/**
+ * Requests permission (prompting the OS dialog if not yet decided) and
+ * returns this device's Expo push token, or null if denied/unavailable
+ * (simulators, web). Call this only after the app's own pre-prompt has
+ * gotten an explicit "yes" — the OS dialog can only be shown once
+ * meaningfully per install on iOS, so this shouldn't fire before the user
+ * has opted in to seeing it. See `apps/staff/src/hooks/usePushRegistration.ts`
+ * for where that pre-prompt lives and when it's shown.
+ */
+export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  await ensureAndroidChannel()
 
   const existing = await Notifications.getPermissionsAsync()
   let status = existing.status
@@ -42,6 +40,20 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
   if (status !== 'granted') return null
 
+  const token = await Notifications.getExpoPushTokenAsync()
+  return token.data
+}
+
+/**
+ * Reads this device's push token WITHOUT prompting — resolves null if
+ * permission was never granted (or has since been revoked in system
+ * settings). Used on logout: unregistering the token server-side only makes
+ * sense if we can still read it, and asking permission again just to turn
+ * around and revoke it would be backwards.
+ */
+export async function getExpoPushTokenIfGranted(): Promise<string | null> {
+  const existing = await Notifications.getPermissionsAsync()
+  if (existing.status !== 'granted') return null
   const token = await Notifications.getExpoPushTokenAsync()
   return token.data
 }

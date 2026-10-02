@@ -2,37 +2,41 @@ import React from 'react'
 import { FlatList, Pressable, View } from 'react-native'
 import { Redirect, router, useLocalSearchParams } from 'expo-router'
 import { Badge, Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
-import { useCustomerAuthStore } from '@yws/shared'
-import { useMyOrders } from '../../../../../src/hooks/queries'
+import { formatMoney, ORDER_STATUS_LABEL, useCustomerAuthStore } from '@yws/shared'
+import { useMyOrders, useTenant } from '../../../../../src/hooks/queries'
 
 export default function MyOrdersScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
   const customer = useCustomerAuthStore((s) => s.customer)
-  const { data, isLoading } = useMyOrders(slug)
+  const isBootstrapping = useCustomerAuthStore((s) => s.isBootstrapping)
+  const { data: tenant } = useTenant(slug)
+  const { data, isLoading } = useMyOrders(slug, !!customer)
 
+  // Don't bounce to login while a stored session is still being restored.
+  if (isBootstrapping) return <Spinner fullScreen />
   if (!customer) return <Redirect href={`/store/${slug}/auth/login`} />
   if (isLoading) return <Spinner fullScreen />
 
   return (
     <Screen>
       <Text variant="title" style={{ marginBottom: 12 }}>
-        My orders
+        Mis pedidos
       </Text>
       <FlatList
         data={data?.items ?? []}
         keyExtractor={(o) => o.id}
         contentContainerStyle={{ gap: 10 }}
-        ListEmptyComponent={<EmptyState title="No orders yet" />}
+        ListEmptyComponent={<EmptyState title="Todavía no hay pedidos" />}
         renderItem={({ item }) => (
           <Pressable onPress={() => router.push(`/store/${slug}/orders/${item.id}`)}>
             <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ gap: 2 }}>
                 <Text weight="semibold">#{item.orderNumber}</Text>
                 <Text color="muted" variant="caption">
-                  {item.currency} {item.grandTotal}
+                  {formatMoney(item.grandTotal, tenant)}
                 </Text>
               </View>
-              <Badge label={item.status} tone="info" />
+              <Badge label={ORDER_STATUS_LABEL[item.status]} tone="info" />
             </Card>
           </Pressable>
         )}

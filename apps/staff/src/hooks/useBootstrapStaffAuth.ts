@@ -1,31 +1,44 @@
 import { useEffect } from 'react'
-import { useStaffAuthStore } from '@yws/shared'
+import { useStaffAuthStore, waitForHydration } from '@yws/shared'
 import { staffApi } from '../lib/api'
 
-/** Runs once at app start: tries to restore a session, then stops blocking navigation either way. */
-export function useBootstrapStaffAuth() {
-  const setSession = useStaffAuthStore((s) => s.setSession)
-  const setTenants = useStaffAuthStore((s) => s.setTenants)
-  const setActiveTenant = useStaffAuthStore((s) => s.setActiveTenant)
-  const setBootstrapping = useStaffAuthStore((s) => s.setBootstrapping)
+let inFlight: Promise<void> | null = null
 
-  useEffect(() => {
-    let cancelled = false
-    staffApi.auth
-      .bootstrap()
-      .then((result) => {
-        if (cancelled || !result) return
-        setSession({ user: result.user, accessToken: useStaffAuthStore.getState().accessToken! })
-        setTenants(result.tenants)
-        setActiveTenant(result.tenants[0] ?? null)
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setBootstrapping(false)
-      })
-    return () => {
-      cancelled = true
+/**
+ * Tries to restore the persisted session, then stops blocking navigation
+ * either way. If the api couldn't be reached, the stored refresh token is kept
+ * (see `isRefreshRejected`) and the entry route offers a retry instead of
+ * dropping the seller on the login screen — call this again for that retry.
+ */
+export function restoreStaffSession(): Promise<void> {
+  inFlight ??= (async () => {
+    const store = useStaffAuthStore.getState()
+    store.setBootstrapping(true)
+    try {
+      // The persisted refreshToken (see staff-auth.store.ts) is only readable
+      // once SecureStore's async rehydration finishes — without this, bootstrap
+      // can run first, see refreshToken still null, and silently skip
+      // restoring a session that was actually there.
+      await waitForHydration(useStaffAuthStore)
+      const result = await staffApi.auth.bootstrap()
+      if (!result) return
+      store.setSession({ user: result.user, accessToken: useStaffAuthStore.getState().accessToken! })
+      store.setTenants(result.tenants)
+      store.setActiveTenant(result.activeTenant)
+    } catch {
+      // Unreachable api: don't leave a half-restored session behind.
+      store.setAccessToken(null)
+    } finally {
+      store.setBootstrapping(false)
+      inFlight = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  })()
+  return inFlight
+}
+
+/** Runs `restoreStaffSession` once at app start. */
+export function useBootstrapStaffAuth() {
+  useEffect(() => {
+    restoreStaffSession()
   }, [])
 }

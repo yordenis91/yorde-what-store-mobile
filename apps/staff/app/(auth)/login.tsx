@@ -15,7 +15,7 @@ export default function LoginScreen() {
   async function onSubmit() {
     const parsed = loginSchema.safeParse({ email, password })
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid credentials')
+      setError(parsed.error.issues[0]?.message ?? 'Email o contraseña inválidos')
       return
     }
     setLoading(true)
@@ -29,7 +29,7 @@ export default function LoginScreen() {
       setSession(result)
       router.replace('/select-tenant')
     } catch (err) {
-      setError(extractErrorMessage(err, 'Could not sign in. Check your credentials.'))
+      setError(extractErrorMessage(err, 'No pudimos iniciar sesión. Revisá tus datos.'))
     } finally {
       setLoading(false)
     }
@@ -40,13 +40,13 @@ export default function LoginScreen() {
       <View style={{ flex: 1, justifyContent: 'center', gap: 24 }}>
         <View style={{ gap: 4 }}>
           <Text variant="title">Yorde What Store</Text>
-          <Text color="muted">Sign in to manage your store</Text>
+          <Text color="muted">Iniciá sesión para administrar tu tienda</Text>
         </View>
         <Card style={{ gap: 16 }}>
-          <Input label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
-          <Input label="Password" secureTextEntry value={password} onChangeText={setPassword} />
+          <Input label="Correo electrónico" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+          <Input label="Contraseña" secureTextEntry value={password} onChangeText={setPassword} />
           {error ? <Text color="danger">{error}</Text> : null}
-          <Button title="Sign in" onPress={onSubmit} loading={loading} />
+          <Button title="Iniciar sesión" onPress={onSubmit} loading={loading} />
         </Card>
       </View>
     </Screen>

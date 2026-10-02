@@ -1,17 +1,6 @@
 const { getDefaultConfig } = require('expo/metro-config')
-const path = require('node:path')
 
-const projectRoot = __dirname
-const workspaceRoot = path.resolve(projectRoot, '../..')
-
-const config = getDefaultConfig(projectRoot)
-
-// Monorepo support: resolve sibling workspace packages and hoisted deps.
-config.watchFolders = [workspaceRoot]
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, 'node_modules'),
-  path.resolve(workspaceRoot, 'node_modules'),
-]
-config.resolver.disableHierarchicalLookup = true
-
-module.exports = config
+// Expo SDK 52+ detects the pnpm workspace and configures watchFolders and
+// node_modules resolution for the monorepo on its own — overriding them here
+// (notably `disableHierarchicalLookup`) breaks resolution of nested deps.
+module.exports = getDefaultConfig(__dirname)

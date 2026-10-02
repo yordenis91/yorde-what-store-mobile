@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { router } from 'expo-router'
 import { Button, Card, Text, Screen } from '@yws/ui'
-import { useStaffAuthStore } from '@yws/shared'
+import { getExpoPushTokenIfGranted, useStaffAuthStore } from '@yws/shared'
 import { staffApi } from '../../src/lib/api'
 
 export default function SettingsScreen() {
@@ -13,6 +13,14 @@ export default function SettingsScreen() {
 
   async function onLogout() {
     setLoggingOut(true)
+    try {
+      // Best-effort — if permission was never granted there's no token to
+      // unregister, and either way a failure here shouldn't block sign-out.
+      const token = await getExpoPushTokenIfGranted()
+      if (token) await staffApi.devices.unregister(token)
+    } catch {
+      // ignore
+    }
     try {
       await staffApi.auth.logout()
     } catch {
@@ -27,20 +35,20 @@ export default function SettingsScreen() {
   return (
     <Screen>
       <Text variant="title" style={{ marginBottom: 16 }}>
-        Settings
+        Ajustes
       </Text>
       <Card style={{ gap: 4, marginBottom: 12 }}>
         <Text weight="semibold">{user?.name}</Text>
         <Text color="muted">{user?.email}</Text>
       </Card>
       <Card style={{ gap: 4, marginBottom: 12 }}>
-        <Text weight="semibold">Store</Text>
+        <Text weight="semibold">Tienda</Text>
         <Text color="muted">{tenant?.name}</Text>
       </Card>
       {tenants.length > 1 ? (
-        <Button title="Switch store" variant="secondary" onPress={() => router.push('/select-tenant')} style={{ marginBottom: 12 }} />
+        <Button title="Cambiar de tienda" variant="secondary" onPress={() => router.push('/select-tenant')} style={{ marginBottom: 12 }} />
       ) : null}
-      <Button title="Log out" variant="danger" onPress={onLogout} loading={loggingOut} />
+      <Button title="Cerrar sesión" variant="danger" onPress={onLogout} loading={loggingOut} />
     </Screen>
   )
 }

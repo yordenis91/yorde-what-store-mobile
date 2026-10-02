@@ -13,8 +13,11 @@ export interface HttpFactoryConfig {
   onAuthExpired: () => void
   /**
    * Hits this realm's own refresh endpoint and resolves the new access token,
-   * or null if refresh failed. Kept caller-supplied (rather than a fixed path)
-   * because staff and customer refresh through two unrelated endpoints.
+   * or null if the session is definitively gone (see `isRefreshRejected`).
+   * Rejects instead when the api couldn't be reached — the session may still
+   * be valid, so the failed request is just surfaced as-is and nothing is
+   * cleared. Kept caller-supplied (rather than a fixed path) because staff
+   * and customer refresh through two unrelated endpoints.
    */
   refresh: () => Promise<string | null>
   /** Path prefix whose 401s must never trigger a refresh loop (the login/refresh calls themselves). */
@@ -54,10 +57,22 @@ export function createHttpClient(config: HttpFactoryConfig): AxiosInstance {
 
       if (status === 401 && original && !original._retry && !isAuthCall) {
         original._retry = true
+        // Sent with a token that a concurrent request has since refreshed —
+        // retry with the current one rather than rotating the refresh token again.
+        const current = config.getAccessToken()
+        if (current && original.headers.get('Authorization') !== `Bearer ${current}`) {
+          return client(original)
+        }
         refreshPromise ??= config.refresh().finally(() => {
           refreshPromise = null
         })
-        const newToken = await refreshPromise
+        let newToken: string | null
+        try {
+          newToken = await refreshPromise
+        } catch {
+          // Refresh endpoint unreachable — keep the session, fail this request.
+          return Promise.reject(error)
+        }
         if (newToken) {
           config.onTokenRefreshed(newToken)
           original.headers.set('Authorization', `Bearer ${newToken}`)
@@ -71,6 +86,19 @@ export function createHttpClient(config: HttpFactoryConfig): AxiosInstance {
   )
 
   return client
+}
+
+/**
+ * Whether a failed refresh call means the api rejected the refresh token
+ * (revoked, expired, reused, wrong device…) rather than merely not being
+ * reachable. Only a rejection may wipe the stored token: a network error,
+ * timeout, 429 or 5xx says nothing about the session, and clearing it then
+ * would log the user out just for opening the app offline.
+ */
+export function isRefreshRejected(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || !error.response) return false
+  const { status } = error.response
+  return status >= 400 && status < 500 && status !== 408 && status !== 429
 }
 
 export function unwrap<T>(promise: Promise<{ data: ApiEnvelope<T> }>): Promise<T> {

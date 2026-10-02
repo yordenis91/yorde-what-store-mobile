@@ -11,17 +11,23 @@ import { secureJsonStorage } from '../storage/secure-json-storage'
  * (SecureStore) so relaunching the app returns to the last store instead of
  * the picker every time.
  *
- * `accessToken` is NOT persisted, same rationale — and same cookie-based
- * refresh gap — as `staff-auth.store.ts`.
+ * `accessToken` is NOT persisted, same rationale as `staff-auth.store.ts`.
+ * `refreshToken` IS — the mobile-safe token from `.../auth/register` or
+ * `.../auth/login`'s `mobileRefreshToken` field (see `customer-api.ts`),
+ * rotating on every use via `setRefreshToken`. Switching stores clears it
+ * along with everything else in `setTenantSlug`: a customer's session for
+ * store A has no business surviving into store B's.
  */
 interface CustomerAuthState {
   tenantSlug: string | null
   customer: Customer | null
   accessToken: string | null
+  refreshToken: string | null
   isBootstrapping: boolean
   setTenantSlug: (slug: string | null) => void
   setSession: (payload: { customer: Customer; accessToken: string }) => void
   setAccessToken: (accessToken: string | null) => void
+  setRefreshToken: (refreshToken: string | null) => void
   setBootstrapping: (value: boolean) => void
   clear: () => void
 }
@@ -32,21 +38,23 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
       tenantSlug: null,
       customer: null,
       accessToken: null,
+      refreshToken: null,
       isBootstrapping: true,
       setTenantSlug: (slug) => {
         if (get().tenantSlug !== slug) {
-          set({ tenantSlug: slug, customer: null, accessToken: null })
+          set({ tenantSlug: slug, customer: null, accessToken: null, refreshToken: null })
         }
       },
       setSession: ({ customer, accessToken }) => set({ customer, accessToken }),
       setAccessToken: (accessToken) => set({ accessToken }),
+      setRefreshToken: (refreshToken) => set({ refreshToken }),
       setBootstrapping: (isBootstrapping) => set({ isBootstrapping }),
-      clear: () => set({ customer: null, accessToken: null }),
+      clear: () => set({ customer: null, accessToken: null, refreshToken: null }),
     }),
     {
       name: 'yws-customer-auth',
       storage: createJSONStorage(() => secureJsonStorage),
-      partialize: (state) => ({ tenantSlug: state.tenantSlug }),
+      partialize: (state) => ({ tenantSlug: state.tenantSlug, refreshToken: state.refreshToken }),
     },
   ),
 )

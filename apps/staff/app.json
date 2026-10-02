@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Yorde What Store - Seller",
+    "name": "Yorde What Store - Vendedor",
     "slug": "yws-staff",
     "scheme": "ywsstaff",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,

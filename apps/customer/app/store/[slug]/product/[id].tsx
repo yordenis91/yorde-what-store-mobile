@@ -10,12 +10,17 @@ export default function ProductDetailScreen() {
   const { data: tenant } = useTenant(slug)
   const { data: product, isLoading } = useStorefrontProduct(slug, id)
   const addItem = useCartStore((s) => s.addItem)
+  const inCart = useCartStore((s) => s.items.find((i) => i.productId === id && !i.variantId)?.quantity ?? 0)
   const [added, setAdded] = useState(false)
 
   if (isLoading) return <Spinner fullScreen />
-  if (!product) return <EmptyState title="Product not found" />
+  if (!product) return <EmptyState title="Producto no encontrado" />
 
   const cover = product.images.find((i) => i.isCover) ?? product.images[0]
+  // Stock only limits the cart when the store tracks inventory — mirrors the web client.
+  const stock = tenant?.tracksInventory ? product.quantity : undefined
+  const soldOut = stock !== undefined && stock <= 0
+  const allInCart = stock !== undefined && !soldOut && inCart >= stock
 
   function onAddToCart() {
     if (!product) return
@@ -25,7 +30,7 @@ export default function ProductDetailScreen() {
       unitPrice: Number.parseFloat(product.price),
       quantity: 1,
       imageUrl: cover?.url,
-      maxQuantity: product.quantity || undefined,
+      maxQuantity: stock,
     })
     setAdded(true)
   }
@@ -35,22 +40,22 @@ export default function ProductDetailScreen() {
       {cover ? <Image source={{ uri: cover.url }} style={{ width: '100%', height: 240, borderRadius: 12 }} resizeMode="cover" /> : null}
       <View style={{ marginTop: 16, gap: 8 }}>
         <Text variant="title">{product.name}</Text>
-        <Text variant="subtitle">{tenant ? formatMoney(product.price, tenant) : product.price}</Text>
+        <Text variant="subtitle">{formatMoney(product.price, tenant)}</Text>
         {product.description ? <Text color="muted">{product.description}</Text> : null}
       </View>
       <Button
-        title={added ? 'Added to cart' : 'Add to cart'}
+        title={soldOut ? 'Agotado' : allInCart ? 'Ya tenés todo el stock en el carrito' : added ? 'Agregado al carrito' : 'Agregar al carrito'}
         onPress={onAddToCart}
         style={{ marginTop: 20 }}
-        disabled={product.hasVariants}
+        disabled={product.hasVariants || soldOut || allInCart}
       />
       {product.hasVariants ? (
         <Text color="muted" variant="caption" style={{ marginTop: 8, textAlign: 'center' }}>
-          This product has options — variant selection isn't implemented yet.
+          Este producto tiene opciones — todavía no se pueden elegir desde la app.
         </Text>
       ) : null}
       {added ? (
-        <Button title="View cart" variant="secondary" onPress={() => router.push(`/store/${slug}/cart`)} style={{ marginTop: 8 }} />
+        <Button title="Ver carrito" variant="secondary" onPress={() => router.push(`/store/${slug}/cart`)} style={{ marginTop: 8 }} />
       ) : null}
     </Screen>
   )

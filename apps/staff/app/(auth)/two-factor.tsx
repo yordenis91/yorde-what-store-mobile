@@ -20,7 +20,7 @@ export default function TwoFactorScreen() {
       setSession(result)
       router.replace('/select-tenant')
     } catch (err) {
-      setError(extractErrorMessage(err, 'Invalid code'))
+      setError(extractErrorMessage(err, 'Código inválido'))
     } finally {
       setLoading(false)
     }
@@ -29,11 +29,11 @@ export default function TwoFactorScreen() {
   return (
     <Screen>
       <View style={{ flex: 1, justifyContent: 'center', gap: 24 }}>
-        <Text variant="title">Two-factor code</Text>
+        <Text variant="title">Verificación en dos pasos</Text>
         <Card style={{ gap: 16 }}>
-          <Input label="6-digit code" keyboardType="number-pad" maxLength={6} value={code} onChangeText={setCode} />
+          <Input label="Código de 6 dígitos" keyboardType="number-pad" maxLength={6} value={code} onChangeText={setCode} />
           {error ? <Text color="danger">{error}</Text> : null}
-          <Button title="Verify" onPress={onSubmit} loading={loading} />
+          <Button title="Verificar" onPress={onSubmit} loading={loading} />
         </Card>
       </View>
     </Screen>
