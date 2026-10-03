@@ -78,6 +78,12 @@ export interface PublicTenant {
   shippingPolicyContent: string | null
   returnPolicyContent: string | null
   privacyPolicyContent: string | null
+  /**
+   * The store's Zelle recipient — present only when the store has Zelle
+   * enabled (absent otherwise), so its presence is what gates offering Zelle
+   * at checkout. Public on purpose: it's what the customer needs to pay.
+   */
+  zellePaymentInfo?: ZellePaymentInfo | null
 }
 
 export interface ProductCategory {
@@ -116,6 +122,8 @@ export interface Product {
   sku: string | null
   description: string | null
   price: string
+  /** "Before" price; a discount exists only when it is higher than `price`. */
+  compareAtPrice: string | null
   cost: string | null
   quantity: number
   hasVariants: boolean
@@ -129,7 +137,7 @@ export interface Product {
   createdAt: string
 }
 
-export type FulfillmentMethod = 'WHATSAPP' | 'TELEGRAM' | 'STRIPE' | 'MERCADOPAGO'
+export type FulfillmentMethod = 'WHATSAPP' | 'TELEGRAM' | 'STRIPE' | 'MERCADOPAGO' | 'ZELLE'
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED' | 'REFUNDED'
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
 
@@ -165,6 +173,56 @@ export interface Order {
   items: OrderItem[]
   createdAt: string
   invoiceAvailable?: boolean
+  /** Zelle only: the customer's uploaded proof and optional confirmation number. Cleared if the store rejects it. */
+  paymentProofUrl?: string | null
+  paymentReference?: string | null
+}
+
+/** An active delivery option from `GET /storefront/shipping`; not choosing one means picking up in store. */
+export interface Shipping {
+  id: string
+  name: string
+  cost: string
+  locationId: string | null
+  isActive: boolean
+}
+
+/** Free-form on the api (`shippingAddress` is any object); these are the fields the web checkout collects. */
+export interface ShippingAddress {
+  line1?: string
+  line2?: string
+  city?: string
+  state?: string
+  postalCode?: string
+  notes?: string
+}
+
+export interface ZellePaymentInfo {
+  recipientName?: string
+  recipientEmail?: string
+  recipientPhone?: string
+  instructions?: string
+}
+
+/** `GET /storefront/orders/:id/public` — the invoice-style view of an order, readable by anyone holding its (random UUID) id. */
+export interface PublicOrder {
+  id: string
+  orderNumber: string
+  status: OrderStatus
+  paymentStatus: PaymentStatus
+  fulfillmentMethod: FulfillmentMethod
+  currency: string
+  createdAt: string
+  customerName: string
+  customerEmail: string | null
+  customerPhone: string | null
+  shipping: { name: string; cost: string } | null
+  subtotal: string
+  taxTotal: string
+  discountTotal: string
+  shippingTotal: string
+  grandTotal: string
+  items: { id: string; productName: string; variantName: string | null; quantity: number; unitPrice: string; taxAmount: string; lineTotal: string }[]
 }
 
 export interface Customer {

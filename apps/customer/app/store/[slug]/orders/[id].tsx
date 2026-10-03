@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router'
 import { Badge, Card, EmptyState, Screen, Spinner, Text } from '@yws/ui'
 import { formatMoney, ORDER_STATUS_LABEL } from '@yws/shared'
 import { useMyOrder, useTenant } from '../../../../src/hooks/queries'
+import { ZelleProofCard } from '../../../../src/components/ZelleProofCard'
 
 export default function MyOrderDetailScreen() {
   const { slug, id } = useLocalSearchParams<{ slug: string; id: string }>()
@@ -32,6 +33,11 @@ export default function MyOrderDetailScreen() {
           <Text weight="semibold">{formatMoney(order.grandTotal, tenant)}</Text>
         </View>
       </Card>
+      {order.fulfillmentMethod === 'ZELLE' ? (
+        <View style={{ marginTop: 12 }}>
+          <ZelleProofCard slug={slug} orderId={order.id} />
+        </View>
+      ) : null}
     </Screen>
   )
 }

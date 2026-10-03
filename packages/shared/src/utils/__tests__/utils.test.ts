@@ -1,5 +1,6 @@
-import { formatMoney } from '../format'
-import { createStoreSlugSchema, storeSlugSchema } from '../validation'
+import { discountPercent, formatMoney } from '../format'
+import { createMediaUrlResolver } from '../media'
+import { cleanShippingAddress, createStoreSlugSchema, deliveryAddressError, storeSlugSchema } from '../validation'
 import { buildWhatsAppUrl } from '../whatsapp'
 
 describe('storeSlugSchema', () => {
@@ -80,5 +81,55 @@ describe('formatMoney', () => {
 describe('buildWhatsAppUrl', () => {
   it('keeps only the digits of the phone number and encodes the message', () => {
     expect(buildWhatsAppUrl('+53 (5) 123-4567', 'Hola & adiós')).toBe('https://wa.me/5351234567?text=Hola%20%26%20adi%C3%B3s')
+  })
+})
+
+describe('createMediaUrlResolver', () => {
+  const resolve = createMediaUrlResolver('https://yws.yordeniscorreoso.com/api/v1')
+
+  it('prefixes api-relative upload paths with the api origin', () => {
+    expect(resolve('/uploads/t1/a.webp')).toBe('https://yws.yordeniscorreoso.com/uploads/t1/a.webp')
+    expect(resolve('uploads/t1/a.webp')).toBe('https://yws.yordeniscorreoso.com/uploads/t1/a.webp')
+  })
+
+  it('keeps the port of a local api', () => {
+    expect(createMediaUrlResolver('http://192.168.1.50:3000/api/v1')('/uploads/a.jpg')).toBe('http://192.168.1.50:3000/uploads/a.jpg')
+  })
+
+  it('leaves absolute and local-file URLs alone', () => {
+    expect(resolve('https://cdn.example.com/a.jpg')).toBe('https://cdn.example.com/a.jpg')
+    expect(resolve('file:///tmp/a.jpg')).toBe('file:///tmp/a.jpg')
+  })
+})
+
+describe('discountPercent', () => {
+  it('rounds the discount when the before price is higher', () => {
+    expect(discountPercent('75', '100')).toBe(25)
+    expect(discountPercent(9.99, '14.99')).toBe(33)
+  })
+
+  it.each([
+    ['no before price', '10', null],
+    ['a before price that is not higher', '10', '10'],
+    ['a before price below the price', '10', '8'],
+    ['a zero before price', '0', '0'],
+  ])('is null for %s', (_label, price, compareAt) => {
+    expect(discountPercent(price, compareAt)).toBeNull()
+  })
+})
+
+describe('delivery address', () => {
+  it('requires a street and a city, like the web checkout', () => {
+    expect(deliveryAddressError({})).toBe('Ingresá la calle y el número')
+    expect(deliveryAddressError({ line1: ' 12 ', city: 'Miami' })).toBe('Ingresá la calle y el número')
+    expect(deliveryAddressError({ line1: 'Calle 8 #123', city: ' ' })).toBe('Ingresá la ciudad')
+    expect(deliveryAddressError({ line1: 'Calle 8 #123', city: 'Miami' })).toBeNull()
+  })
+
+  it('sends only the fields that were filled in, trimmed', () => {
+    expect(cleanShippingAddress({ line1: ' Calle 8 #123 ', line2: '  ', city: 'Miami', notes: '' })).toEqual({
+      line1: 'Calle 8 #123',
+      city: 'Miami',
+    })
   })
 })

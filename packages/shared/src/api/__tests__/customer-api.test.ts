@@ -96,6 +96,88 @@ describe('customerApi.orders.quote', () => {
   })
 })
 
+describe('customerApi.orders Zelle proof', () => {
+  it('reads the public order without a session, scoped to the store', async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store' })
+    const fake = installFakeAdapter(ORIGIN, () => ok({ id: 'o1', paymentStatus: 'PENDING' }))
+    restore = fake.restore
+
+    await expect(createCustomerApi(ORIGIN).orders.public('o1')).resolves.toEqual({ id: 'o1', paymentStatus: 'PENDING' })
+    expect(fake.requests[0]).toMatchObject({
+      method: 'GET',
+      path: '/storefront/orders/o1/public',
+      headers: { authorization: undefined, tenant: 'my-store' },
+    })
+  })
+
+  it('uploads the screenshot as multipart, with the optional confirmation number', async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store' })
+    const fake = installFakeAdapter(ORIGIN, () => ok({ id: 'o1', paymentProofUrl: '/uploads/x.webp' }))
+    restore = fake.restore
+
+    const image = { uri: 'file:///tmp/proof.jpg', name: 'proof.jpg', mimeType: 'image/jpeg' }
+    await createCustomerApi(ORIGIN).orders.uploadPaymentProof('o1', image, 'ZL-123')
+
+    const req = fake.requests[0]!
+    expect(req).toMatchObject({ method: 'POST', path: '/storefront/orders/o1/payment-proof-image', headers: { tenant: 'my-store' } })
+    // React Native's FormData keeps each part as appended; `getParts` is RN-only.
+    const parts = (req.body as unknown as { getParts: () => { fieldName: string; uri?: string; type?: string; string?: string }[] }).getParts()
+    expect(parts).toEqual([
+      expect.objectContaining({ fieldName: 'file', uri: image.uri, type: 'image/jpeg', name: 'proof.jpg' }),
+      expect.objectContaining({ fieldName: 'reference', string: 'ZL-123' }),
+    ])
+  })
+
+  it('omits the confirmation number when there is none', async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store' })
+    const fake = installFakeAdapter(ORIGIN, () => ok({ id: 'o1' }))
+    restore = fake.restore
+
+    await createCustomerApi(ORIGIN).orders.uploadPaymentProof('o1', { uri: 'file:///p.png', name: 'p.png', mimeType: 'image/png' })
+    const parts = (fake.requests[0]!.body as unknown as { getParts: () => { fieldName: string }[] }).getParts()
+    expect(parts.map((p) => p.fieldName)).toEqual(['file'])
+  })
+})
+
+describe('customerApi.shipping.list', () => {
+  it("lists the store's delivery options without a session", async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store' })
+    const options = [{ id: 's1', name: 'Envío a domicilio', cost: '1000', locationId: null, isActive: true }]
+    const fake = installFakeAdapter(ORIGIN, () => ok(options))
+    restore = fake.restore
+
+    await expect(createCustomerApi(ORIGIN).shipping.list()).resolves.toEqual(options)
+    expect(fake.requests[0]).toMatchObject({ method: 'GET', path: '/storefront/shipping', headers: { tenant: 'my-store' } })
+  })
+})
+
+describe('customerApi.me.delete', () => {
+  it('deletes the account and only then clears the local session', async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store', customer, accessToken: 'at-1', refreshToken: 'rt-1' })
+    const fake = installFakeAdapter(ORIGIN, () => ok({ anonymized: true }))
+    restore = fake.restore
+
+    await expect(createCustomerApi(ORIGIN).me.delete()).resolves.toEqual({ anonymized: true })
+    expect(fake.requests[0]).toMatchObject({
+      method: 'DELETE',
+      path: '/storefront/customers/me',
+      headers: { authorization: 'Bearer at-1', tenant: 'my-store' },
+    })
+    expect(useCustomerAuthStore.getState()).toMatchObject({ customer: null, accessToken: null, refreshToken: null })
+    // Still on the same store: deleting the account isn't leaving it.
+    expect(useCustomerAuthStore.getState().tenantSlug).toBe('my-store')
+  })
+
+  it('keeps the session when the api could not delete it', async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store', customer, accessToken: 'at-1', refreshToken: 'rt-1' })
+    const fake = installFakeAdapter(ORIGIN, () => ({ status: 500 }))
+    restore = fake.restore
+
+    await expect(createCustomerApi(ORIGIN).me.delete()).rejects.toBeDefined()
+    expect(useCustomerAuthStore.getState()).toMatchObject({ customer, accessToken: 'at-1', refreshToken: 'rt-1' })
+  })
+})
+
 describe('useCustomerAuthStore', () => {
   it('drops the session when switching to a different store', () => {
     useCustomerAuthStore.setState({ tenantSlug: 'store-a', customer, accessToken: 'at', refreshToken: 'rt' })

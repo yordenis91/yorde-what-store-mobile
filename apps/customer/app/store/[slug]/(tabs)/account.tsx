@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { Alert } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Button, Card, Screen, Text } from '@yws/ui'
-import { useCartStore, useCustomerAuthStore } from '@yws/shared'
+import { extractErrorMessage, useCartStore, useCustomerAuthStore } from '@yws/shared'
 import { customerApi } from '../../../../src/lib/api'
 import { restoreCustomerSession } from '../../../../src/hooks/useBootstrapCustomerAuth'
 
@@ -13,6 +14,8 @@ export default function AccountScreen() {
   const clearSession = useCustomerAuthStore((s) => s.clear)
   const setStoreSlug = useCustomerAuthStore((s) => s.setTenantSlug)
   const setCartSlug = useCartStore((s) => s.setTenantSlug)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   function onSwitchStore() {
     setStoreSlug(null)
@@ -52,8 +55,33 @@ export default function AccountScreen() {
     }
   }
 
+  async function deleteAccount() {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      // Clears the session on success; the screen then shows the signed-out state.
+      await customerApi.me.delete()
+    } catch (err) {
+      setDeleteError(extractErrorMessage(err, 'No pudimos eliminar tu cuenta. Intentá de nuevo.'))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  function onDeleteAccount() {
+    Alert.alert(
+      '¿Eliminar tu cuenta?',
+      'Vamos a borrar tu nombre, email, teléfono y direcciones, también de tus pedidos anteriores. ' +
+        'Los pedidos se conservan sin tus datos, porque son registros de la tienda. Esto no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar cuenta', style: 'destructive', onPress: () => void deleteAccount() },
+      ],
+    )
+  }
+
   return (
-    <Screen>
+    <Screen scroll>
       <Text variant="title" style={{ marginBottom: 16 }}>
         Cuenta
       </Text>
@@ -62,7 +90,13 @@ export default function AccountScreen() {
         <Text color="muted">{customer.email ?? customer.phone}</Text>
       </Card>
       <Button title="Cerrar sesión" variant="danger" onPress={onLogout} style={{ marginBottom: 12 }} />
-      <Button title="Cambiar de tienda" variant="ghost" onPress={onSwitchStore} />
+      <Button title="Cambiar de tienda" variant="ghost" onPress={onSwitchStore} style={{ marginBottom: 32 }} />
+      {deleteError ? (
+        <Text color="danger" style={{ marginBottom: 8 }}>
+          {deleteError}
+        </Text>
+      ) : null}
+      <Button title="Eliminar mi cuenta" variant="ghost" loading={deleting} onPress={onDeleteAccount} />
     </Screen>
   )
 }

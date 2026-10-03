@@ -2,7 +2,19 @@ import axios from 'axios'
 import { useCustomerAuthStore } from '../stores/customer-auth.store'
 import { createHttpClient, isRefreshRejected, unwrap } from './http-factory'
 import { getDeviceId } from '../utils/device-id'
-import type { ApiEnvelope, Customer, CustomerOrderSummary, Order, PaginatedResult, Product, PublicTenant } from '../types/api'
+import type {
+  ApiEnvelope,
+  Customer,
+  CustomerOrderSummary,
+  FulfillmentMethod,
+  Order,
+  PaginatedResult,
+  Product,
+  PublicOrder,
+  PublicTenant,
+  Shipping,
+  ShippingAddress,
+} from '../types/api'
 
 export interface CustomerRegisterPayload {
   name: string
@@ -37,8 +49,8 @@ export interface CreateOrderPayload {
   items: { productId: string; variantId?: string; quantity: number }[]
   couponCode?: string
   shippingId?: string
-  fulfillmentMethod: 'WHATSAPP' | 'TELEGRAM' | 'STRIPE' | 'MERCADOPAGO'
-  shippingAddress?: Record<string, unknown>
+  fulfillmentMethod: FulfillmentMethod
+  shippingAddress?: ShippingAddress
   sessionId?: string
 }
 
@@ -48,6 +60,7 @@ export type CreateOrderResult =
   | { order: Order; fulfillment: { type: 'TELEGRAM'; queued: true } }
   | { order: Order; fulfillment: { type: 'STRIPE' } }
   | { order: Order; fulfillment: { type: 'MERCADOPAGO' } }
+  | { order: Order; fulfillment: { type: 'ZELLE' } }
 
 /**
  * Rotates the mobile-safe refresh token — see `staff-api.ts`'s
@@ -163,18 +176,61 @@ export function createCustomerApi(baseURL: string) {
       orders: (params?: { page?: number; limit?: number }) =>
         unwrap<PaginatedResult<CustomerOrderSummary>>(client.get('/storefront/customers/orders', { params })),
       order: (id: string) => unwrap<CustomerOrderSummary>(client.get(`/storefront/customers/orders/${id}`)),
+      /**
+       * Self-service account deletion (required by the App Store and Google
+       * Play for apps that let users create accounts). The api scrubs the
+       * account's and its orders' personal data — the orders and their totals
+       * stay, they're the store's own records — and revokes every refresh
+       * token, this device's included. The local session is only cleared once
+       * the api confirms, so a failed request leaves the user signed in to retry.
+       */
+      delete: async () => {
+        const result = await unwrap<{ anonymized: true }>(client.delete('/storefront/customers/me'))
+        useCustomerAuthStore.getState().clear()
+        return result
+      },
     },
     products: {
       list: (params?: { page?: number; limit?: number; categoryId?: string; search?: string }) =>
         unwrap<PaginatedResult<Product>>(client.get('/storefront/products', { params })),
       get: (id: string) => unwrap<Product>(client.get(`/storefront/products/${id}`)),
     },
+    shipping: {
+      /** The store's active delivery options. Empty means the store only offers pickup. */
+      list: () => unwrap<Shipping[]>(client.get('/storefront/shipping')),
+    },
     orders: {
       create: (payload: CreateOrderPayload) => unwrap<CreateOrderResult>(client.post('/storefront/orders', payload)),
       quote: (payload: { items: { productId: string; variantId?: string; quantity: number }[]; couponCode?: string; shippingId?: string }) =>
         unwrap<OrderQuote>(client.post('/storefront/orders/quote', payload)),
+      /** The invoice-style view of an order — no session needed, the order id is the credential (works for guests). */
+      public: (id: string) => unwrap<PublicOrder>(client.get(`/storefront/orders/${id}/public`)),
+      /**
+       * Attaches the customer's Zelle payment screenshot (and optional
+       * confirmation number) to an order that already exists. Can be repeated
+       * to replace it until the store marks the order paid (the api answers
+       * 409 then). Never part of order creation, same as the web checkout.
+       */
+      uploadPaymentProof: (orderId: string, image: PaymentProofImage, reference?: string) => {
+        const form = new FormData()
+        // React Native's FormData takes a file as { uri, name, type } rather than a Blob.
+        form.append('file', { uri: image.uri, name: image.name, type: image.mimeType } as unknown as Blob)
+        if (reference) form.append('reference', reference)
+        return unwrap<Order>(
+          client.post(`/storefront/orders/${orderId}/payment-proof-image`, form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          }),
+        )
+      },
     },
   }
+}
+
+/** A picked image as React Native's FormData needs it. */
+export interface PaymentProofImage {
+  uri: string
+  name: string
+  mimeType: string
 }
 
 export type CustomerApi = ReturnType<typeof createCustomerApi>

@@ -35,6 +35,7 @@ export default function CartScreen() {
           <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text weight="semibold">{item.name}</Text>
+              {item.variantName ? <Text variant="caption">{item.variantName}</Text> : null}
               <Text color="muted" variant="caption">
                 {formatMoney(item.unitPrice, tenant)} × {item.quantity}
               </Text>

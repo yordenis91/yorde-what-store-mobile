@@ -41,6 +41,14 @@
         {
           "color": "#3b82f6"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Necesitamos acceso a tus fotos para que puedas subir el comprobante de pago.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
       ]
     ],
     "extra": {

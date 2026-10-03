@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { ShippingAddress } from '../types/api'
 
 const email = z.string().email('Ingresá un email válido')
 
@@ -87,4 +88,24 @@ function extractStoreSlug(input: string, root: string | null): string | null {
 
   const labels = host.split('.')
   return labels.length >= 3 && isStoreLabel(labels[0]!) ? labels[0]! : null
+}
+
+/**
+ * Why a delivery address can't be sent yet, or null when it can. Same rule as
+ * the web checkout: only street and city are required (and only for delivery
+ * — pickup needs no address at all).
+ */
+export function deliveryAddressError(address: ShippingAddress): string | null {
+  if ((address.line1 ?? '').trim().length < 4) return 'Ingresá la calle y el número'
+  if ((address.city ?? '').trim().length < 2) return 'Ingresá la ciudad'
+  return null
+}
+
+/** Trims every field and drops the empty ones, so optional fields left blank aren't sent as "". */
+export function cleanShippingAddress(address: ShippingAddress): ShippingAddress {
+  return Object.fromEntries(
+    Object.entries(address)
+      .map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+      .filter(([, value]) => value),
+  ) as ShippingAddress
 }

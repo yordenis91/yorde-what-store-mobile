@@ -105,6 +105,11 @@ export function unwrap<T>(promise: Promise<{ data: ApiEnvelope<T> }>): Promise<T
   return promise.then((res) => res.data.data)
 }
 
+/** The HTTP status the api answered a failed request with, or undefined when it never answered (network error) or it's not a request error. */
+export function httpStatusOf(error: unknown): number | undefined {
+  return axios.isAxiosError(error) ? error.response?.status : undefined
+}
+
 export function extractErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as { message?: string | string[] } | undefined

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import type { CartItem } from '@yws/shared'
 import { customerApi } from '../lib/api'
 
@@ -12,10 +12,16 @@ export function useTenant(slug: string) {
   })
 }
 
+const CATALOG_PAGE_SIZE = 20
+
+/** The store's catalog, a page at a time — `fetchNextPage` as the list nears its end (the api caps a page at 100). */
 export function useStorefrontProducts(slug: string, search?: string) {
-  return useQuery({
-    queryKey: ['storefront-products', slug, search],
-    queryFn: () => customerApi.products.list({ search, limit: 30 }),
+  return useInfiniteQuery({
+    queryKey: ['storefront-products', slug, 'list', search],
+    queryFn: ({ pageParam }) =>
+      customerApi.products.list({ search, page: pageParam, limit: CATALOG_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined),
     enabled: !!slug,
   })
 }
@@ -51,16 +57,36 @@ export function useMyOrder(slug: string, id: string) {
  * the web checkout). Also reports a rejected coupon (`couponError`) and lines
  * that exceed current stock (`stockIssues`).
  */
-export function useCheckoutQuote(slug: string, items: CartItem[], couponCode: string | null) {
+export function useCheckoutQuote(
+  slug: string,
+  items: CartItem[],
+  couponCode: string | null,
+  shippingId: string | null,
+) {
   const orderItems = useMemo(
     () => items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
     [items],
   )
   return useQuery({
-    queryKey: ['checkout-quote', slug, orderItems, couponCode],
-    queryFn: () => customerApi.orders.quote({ items: orderItems, couponCode: couponCode ?? undefined }),
+    queryKey: ['checkout-quote', slug, orderItems, couponCode, shippingId],
+    queryFn: () =>
+      customerApi.orders.quote({
+        items: orderItems,
+        couponCode: couponCode ?? undefined,
+        shippingId: shippingId ?? undefined,
+      }),
     enabled: !!slug && orderItems.length > 0,
     // Keep showing the last totals while a new coupon or quantity is priced.
     placeholderData: keepPreviousData,
+  })
+}
+
+/** The store's active delivery options; empty means pickup only. */
+export function useStorefrontShippings(slug: string) {
+  return useQuery({
+    queryKey: ['storefront-shipping', slug],
+    queryFn: () => customerApi.shipping.list(),
+    enabled: !!slug,
+    staleTime: 5 * 60_000,
   })
 }
