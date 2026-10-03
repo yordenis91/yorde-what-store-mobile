@@ -75,10 +75,24 @@ pnpm dev:staff       # or: pnpm --filter @yws/staff dev
 pnpm dev:customer    # or: pnpm --filter @yws/customer dev
 ```
 
-Each app's API base URL is `expo.extra.apiUrl` in its `app.json` (defaults to
-`http://localhost:3000/api/v1`) — override per environment with an EAS
-build profile or `app.config.ts`, the same way the web client's
-`docker-entrypoint.sh` injects `VITE_API_URL` at runtime.
+Each app's API base URL comes from `EXPO_PUBLIC_API_URL`, read by its
+`app.config.js` into `expo.extra.apiUrl`. When it's unset, the app falls back
+to `app.json`'s `http://localhost:3000/api/v1`. On a phone, `localhost` is the
+phone itself, so copy `apps/<app>/.env.example` to `.env.local` (git-ignored)
+and point it at your machine's LAN IP. For EAS builds, set it in the build
+profile's `env` in `eas.json` instead.
+
+### Running on a device
+
+The SDK 52 apps need a development build, because the store's Expo Go only runs
+the latest SDK. Both apps are linked to EAS projects (`extra.eas.projectId`)
+and ship `expo-dev-client`:
+
+```bash
+cd apps/staff                                   # or apps/customer
+eas build --profile development --platform android
+npx expo start --dev-client                     # customer: add --port 8082
+```
 
 Both apps were verified with `pnpm typecheck` and `pnpm lint` (turbo, across
 all packages) — clean on both. Neither has been run in a simulator/device in

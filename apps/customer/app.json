@@ -20,8 +20,16 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "ywstore", "host": "store" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "ywstore",
+              "host": "store"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -36,7 +44,14 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://localhost:3000/api/v1"
-    }
+      "apiUrl": "http://localhost:3000/api/v1",
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "1c885a43-d041-41ab-95a6-3ae670792d18"
+      }
+    },
+    "owner": "yorde91"
   }
 }

@@ -28,7 +28,14 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://localhost:3000/api/v1"
-    }
+      "apiUrl": "http://localhost:3000/api/v1",
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "7a52dd7f-2479-4452-b3d6-b53fe2488693"
+      }
+    },
+    "owner": "yorde91"
   }
 }
