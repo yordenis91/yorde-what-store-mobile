@@ -80,7 +80,14 @@ Each app's API base URL comes from `EXPO_PUBLIC_API_URL`, read by its
 to `app.json`'s `http://localhost:3000/api/v1`. On a phone, `localhost` is the
 phone itself, so copy `apps/<app>/.env.example` to `.env.local` (git-ignored)
 and point it at your machine's LAN IP. For EAS builds, set it in the build
-profile's `env` in `eas.json` instead.
+profile's `env` in `eas.json` instead. The `preview` and `production`
+profiles already target the deployed api,
+`https://yws.yordeniscorreoso.com/api/v1`.
+
+The customer app also reads `EXPO_PUBLIC_STOREFRONT_ROOT_DOMAIN`, the web's
+`storefrontRootDomain` (`yws.yordeniscorreoso.com` in production). With it,
+pasted `<slug>.<root>` share links are parsed the same way the web parses
+them. Without it, a generic rule is used.
 
 ### Running on a device
 

@@ -1,5 +1,5 @@
 import { formatMoney } from '../format'
-import { storeSlugSchema } from '../validation'
+import { createStoreSlugSchema, storeSlugSchema } from '../validation'
 import { buildWhatsAppUrl } from '../whatsapp'
 
 describe('storeSlugSchema', () => {
@@ -26,6 +26,31 @@ describe('storeSlugSchema', () => {
     ['a slug with invalid characters', 'my store!'],
   ])('rejects %s', (_label, input) => {
     expect(storeSlugSchema.safeParse(input).success).toBe(false)
+  })
+})
+
+describe('createStoreSlugSchema with a known root domain', () => {
+  const schema = createStoreSlugSchema('yws.yordeniscorreoso.com')
+
+  it.each([
+    ['https://mi-tienda.yws.yordeniscorreoso.com', 'mi-tienda'],
+    ['https://Mi-Tienda.yws.yordeniscorreoso.com/product/p1?ref=qr', 'mi-tienda'],
+    ['mi-tienda.yws.yordeniscorreoso.com', 'mi-tienda'],
+    ['https://yws.yordeniscorreoso.com/store/mi-tienda', 'mi-tienda'],
+    ['mi-tienda', 'mi-tienda'],
+    // Off the root domain the generic rule still applies.
+    ['https://mi-tienda.otro-dominio.com', 'mi-tienda'],
+  ])('reads %j as the slug %j', (input, slug) => {
+    expect(schema.parse(input)).toBe(slug)
+  })
+
+  it.each([
+    // Without the root domain these would be misread as the slugs "yws" and "a".
+    ['the platform itself', 'https://yws.yordeniscorreoso.com'],
+    ['a nested subdomain', 'https://a.b.yws.yordeniscorreoso.com'],
+    ['a reserved subdomain', 'https://www.yws.yordeniscorreoso.com'],
+  ])('rejects %s', (_label, input) => {
+    expect(schema.safeParse(input).success).toBe(false)
   })
 })
 

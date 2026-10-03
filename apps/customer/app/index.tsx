@@ -1,9 +1,13 @@
 import React, { useState } from 'react'
 import { View } from 'react-native'
+import Constants from 'expo-constants'
 import { Redirect, router } from 'expo-router'
 import { Button, Card, Input, Screen, Spinner, Text } from '@yws/ui'
-import { extractErrorMessage, storeSlugSchema, useCustomerAuthStore, useHasHydrated } from '@yws/shared'
+import { createStoreSlugSchema, extractErrorMessage, useCustomerAuthStore, useHasHydrated } from '@yws/shared'
 import { customerApi } from '../src/lib/api'
+
+const rootDomain: unknown = Constants.expoConfig?.extra?.storefrontRootDomain
+const storeSlugSchema = createStoreSlugSchema(typeof rootDomain === 'string' ? rootDomain : null)
 
 /**
  * Native has no subdomain, so this is where the web client's `/store/:slug`
