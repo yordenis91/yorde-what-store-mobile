@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react'
-import { Linking, Pressable, View } from 'react-native'
+import { Linking, Pressable, Switch, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Button, Card, EmptyState, Input, Screen, Text, useTheme } from '@yws/ui'
 import {
   cleanShippingAddress,
   deliveryAddressError,
+  emailSchema,
   extractErrorMessage,
   formatMoney,
   useCartStore,
+  useCustomerAuthStore,
   type CreateOrderResult,
   type FulfillmentMethod,
   type PublicTenant,
   type ShippingAddress,
 } from '@yws/shared'
 import { customerApi } from '../../../src/lib/api'
+import { getAnalyticsSessionId } from '../../../src/lib/analytics'
 import { useCheckoutQuote, useStorefrontShippings, useTenant } from '../../../src/hooks/queries'
 
 function SummaryRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
@@ -34,9 +37,10 @@ interface MethodOption {
 
 /**
  * The payment methods this app can complete for this store. Gated the same
- * way as the web checkout: WhatsApp on `whatsappEnabled`, Zelle on the
- * presence of `zellePaymentInfo` (the api only sends it when Zelle is set up).
- * Telegram, Stripe and MercadoPago aren't implemented in the app yet.
+ * way as the web checkout: WhatsApp on `whatsappEnabled`, Telegram on
+ * `telegramEnabled`, Zelle on the presence of `zellePaymentInfo` (the api only
+ * sends it when Zelle is set up). Stripe and MercadoPago aren't implemented in
+ * the app yet.
  */
 function availableMethods(tenant: PublicTenant | undefined): MethodOption[] {
   const methods: MethodOption[] = []
@@ -45,6 +49,13 @@ function availableMethods(tenant: PublicTenant | undefined): MethodOption[] {
       value: 'WHATSAPP',
       label: 'Pedir por WhatsApp',
       hint: 'Tu pedido se abre como mensaje de WhatsApp a la tienda.',
+    })
+  }
+  if (tenant?.telegramEnabled) {
+    methods.push({
+      value: 'TELEGRAM',
+      label: 'Pedir por Telegram',
+      hint: 'Se notifica a la tienda por Telegram.',
     })
   }
   if (tenant?.zellePaymentInfo) {
@@ -120,9 +131,22 @@ export default function CheckoutScreen() {
   const [address, setAddress] = useState<ShippingAddress>({})
   const quote = useCheckoutQuote(slug, items, couponCode, shippingId)
 
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
+  const customer = useCustomerAuthStore((s) => s.customer)
+  const setSession = useCustomerAuthStore((s) => s.setSession)
+  // Prefilled from the signed-in account; the web checkout always starts empty.
+  const [name, setName] = useState(customer?.name ?? '')
+  const [phone, setPhone] = useState(customer?.phone ?? '')
+  const [email, setEmail] = useState(customer?.email ?? '')
+  const [createAccount, setCreateAccount] = useState(false)
+  const [password, setPassword] = useState('')
+
+  // A session restored after this screen mounted still fills whatever is empty.
+  useEffect(() => {
+    if (!customer) return
+    setName((v) => v || customer.name)
+    setPhone((v) => v || customer.phone || '')
+    setEmail((v) => v || customer.email || '')
+  }, [customer])
   const [couponInput, setCouponInput] = useState('')
   const [couponError, setCouponError] = useState<string | null>(null)
   const [chosenMethod, setChosenMethod] = useState<FulfillmentMethod | null>(null)
@@ -185,8 +209,39 @@ export default function CheckoutScreen() {
       setError(addressError)
       return
     }
+    const wantsAccount = createAccount && !customer
+    if (wantsAccount) {
+      if (!emailSchema.safeParse(email).success) {
+        setError('Para crear tu cuenta necesitamos un email válido')
+        return
+      }
+      if (password.length < 8) {
+        setError('La contraseña debe tener al menos 8 caracteres')
+        return
+      }
+    }
     setLoading(true)
     setError(null)
+
+    // Best-effort, same as the web: failing to create the account (e.g. the
+    // email is already registered) must not stop the purchase — the order then
+    // goes through as a guest. On success the order below carries the new
+    // session's token, so it's linked to the account.
+    let accountNotCreated = false
+    if (wantsAccount) {
+      try {
+        const session = await customerApi.auth.register({
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim() || undefined,
+          password,
+        })
+        setSession(session)
+      } catch {
+        accountNotCreated = true
+      }
+    }
+
     let result: CreateOrderResult
     try {
       result = await customerApi.orders.create({
@@ -198,6 +253,8 @@ export default function CheckoutScreen() {
         shippingAddress: shippingId ? cleanShippingAddress(address) : undefined,
         fulfillmentMethod,
         items: items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
+        // Same id as this install's visits, so the dashboard counts the conversion.
+        sessionId: await getAnalyticsSessionId(),
       })
     } catch (err) {
       setError(extractErrorMessage(err, 'No pudimos registrar tu pedido. Intentá de nuevo.'))
@@ -218,6 +275,7 @@ export default function CheckoutScreen() {
         orderNumber: result.order.orderNumber,
         method: fulfillmentMethod,
         whatsappUrl,
+        accountNotCreated: accountNotCreated ? '1' : undefined,
       },
     })
     if (whatsappUrl) Linking.openURL(whatsappUrl).catch(() => undefined)
@@ -385,6 +443,19 @@ export default function CheckoutScreen() {
           value={email}
           onChangeText={setEmail}
         />
+        {!customer ? (
+          <>
+            <View
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+            >
+              <Text style={{ flex: 1 }}>Crear una cuenta con estos datos</Text>
+              <Switch value={createAccount} onValueChange={setCreateAccount} />
+            </View>
+            {createAccount ? (
+              <Input label="Contraseña" secureTextEntry value={password} onChangeText={setPassword} />
+            ) : null}
+          </>
+        ) : null}
         {fulfillmentMethod === 'WHATSAPP' && tenant ? (
           <Text color="muted" variant="caption">
             Te vamos a llevar a WhatsApp para confirmar tu pedido con {tenant.name}.

@@ -1,43 +1,11 @@
 import React, { useState } from 'react'
 import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { Button, EmptyState, Screen, Spinner, Text, useTheme } from '@yws/ui'
-import { discountPercent, formatMoney, useCartStore, type ProductVariant } from '@yws/shared'
+import { Button, Chip, EmptyState, Screen, Spinner, Text, useTheme } from '@yws/ui'
+import { discountPercent, formatMoney, useCartStore } from '@yws/shared'
 import { useStorefrontProduct, useTenant } from '../../../../src/hooks/queries'
 import { mediaUrl } from '../../../../src/lib/api'
-
-function VariantChip({
-  variant,
-  selected,
-  soldOut,
-  onSelect,
-}: {
-  variant: ProductVariant
-  selected: boolean
-  soldOut: boolean
-  onSelect: () => void
-}) {
-  const theme = useTheme()
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected, disabled: soldOut }}
-      disabled={soldOut}
-      onPress={onSelect}
-      style={{
-        borderWidth: selected ? 2 : 1,
-        borderColor: selected ? theme.colors.brand600 : theme.colors.border,
-        backgroundColor: selected ? theme.colors.brand50 : theme.colors.surface,
-        borderRadius: theme.radius.md,
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.sm,
-        opacity: soldOut ? 0.4 : 1,
-      }}
-    >
-      <Text weight={selected ? 'semibold' : undefined}>{variant.name}</Text>
-    </Pressable>
-  )
-}
+import { shareProduct } from '../../../../src/lib/share'
 
 export default function ProductDetailScreen() {
   const { slug, id } = useLocalSearchParams<{ slug: string; id: string }>()
@@ -161,12 +129,12 @@ export default function ProductDetailScreen() {
           <Text weight="semibold">Opciones</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {product.variants.map((v) => (
-              <VariantChip
+              <Chip
                 key={v.id}
-                variant={v}
+                label={v.name}
                 selected={v.id === variantId}
-                soldOut={tracksInventory && v.quantity <= 0}
-                onSelect={() => onSelectVariant(v.id)}
+                disabled={tracksInventory && v.quantity <= 0}
+                onPress={() => onSelectVariant(v.id)}
               />
             ))}
           </View>
@@ -179,6 +147,14 @@ export default function ProductDetailScreen() {
         style={{ marginTop: 20 }}
         disabled={needsVariant || soldOut || allInCart}
       />
+      {tenant ? (
+        <Button
+          title="Compartir producto"
+          variant="ghost"
+          onPress={() => void shareProduct(tenant, product)}
+          style={{ marginTop: 8 }}
+        />
+      ) : null}
       {added ? (
         <Button
           title="Ver carrito"

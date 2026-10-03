@@ -10,6 +10,7 @@ import type {
   Order,
   PaginatedResult,
   Product,
+  ProductCategory,
   PublicOrder,
   PublicTenant,
   Shipping,
@@ -191,9 +192,17 @@ export function createCustomerApi(baseURL: string) {
       },
     },
     products: {
-      list: (params?: { page?: number; limit?: number; categoryId?: string; search?: string }) =>
+      list: (params?: { page?: number; limit?: number; categoryId?: string; search?: string; sort?: ProductSort }) =>
         unwrap<PaginatedResult<Product>>(client.get('/storefront/products', { params })),
       get: (id: string) => unwrap<Product>(client.get(`/storefront/products/${id}`)),
+    },
+    categories: {
+      list: () => unwrap<ProductCategory[]>(client.get('/storefront/categories')),
+    },
+    visits: {
+      /** One pageview for the store's dashboard (visitors, top referrers, conversion rate). Fire-and-forget. */
+      log: (payload: { path: string; referrer?: string; sessionId?: string }) =>
+        client.post('/storefront/visits', payload).then(() => undefined),
     },
     shipping: {
       /** The store's active delivery options. Empty means the store only offers pickup. */
@@ -225,6 +234,9 @@ export function createCustomerApi(baseURL: string) {
     },
   }
 }
+
+/** The catalog orders the api accepts (`ProductQueryDto.sort`). */
+export type ProductSort = 'newest' | 'price_asc' | 'price_desc'
 
 /** A picked image as React Native's FormData needs it. */
 export interface PaymentProofImage {

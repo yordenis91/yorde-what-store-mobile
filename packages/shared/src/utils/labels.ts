@@ -1,4 +1,4 @@
-import type { CustomerSegment, OrderStatus, TenantMemberRole } from '../types/api'
+import type { CustomerSegment, OrderStatus, PaymentStatus, TenantMemberRole } from '../types/api'
 
 /**
  * Display labels for the api's enum codes. The codes themselves (and every
@@ -10,6 +10,13 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   PROCESSING: 'En preparación',
   COMPLETED: 'Completado',
   CANCELLED: 'Cancelado',
+  REFUNDED: 'Reembolsado',
+}
+
+export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  PENDING: 'Pendiente',
+  PAID: 'Pagado',
+  FAILED: 'Fallido',
   REFUNDED: 'Reembolsado',
 }
 

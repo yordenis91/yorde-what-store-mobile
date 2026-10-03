@@ -3,6 +3,12 @@ import { Stack, useLocalSearchParams } from 'expo-router'
 import { EmptyState, Screen, Spinner, ThemeProvider } from '@yws/ui'
 import { useCartStore, useCustomerAuthStore, useHasHydrated } from '@yws/shared'
 import { useTenant } from '../../../src/hooks/queries'
+import { useVisitTracking } from '../../../src/hooks/useVisitTracking'
+
+function VisitTracker() {
+  useVisitTracking()
+  return null
+}
 
 /**
  * Resolves the tenant for this slug, re-themes the subtree to its brand
@@ -47,6 +53,7 @@ export default function StoreLayout() {
 
   return (
     <ThemeProvider tenantThemeName={tenant.theme}>
+      <VisitTracker />
       <Stack screenOptions={{ headerShown: false }} />
     </ThemeProvider>
   )

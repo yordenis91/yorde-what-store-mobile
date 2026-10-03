@@ -151,6 +151,40 @@ describe('customerApi.shipping.list', () => {
   })
 })
 
+describe('customerApi catalog and analytics', () => {
+  it('passes the category filter, sort and page to the products list', async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store' })
+    const fake = installFakeAdapter(ORIGIN, () => ok({ items: [], meta: { page: 2, limit: 20, total: 0, totalPages: 0 } }))
+    restore = fake.restore
+
+    await createCustomerApi(ORIGIN).products.list({ categoryId: 'c1', sort: 'price_asc', page: 2, limit: 20 })
+    expect(fake.requests[0]).toMatchObject({
+      path: '/storefront/products',
+      params: { categoryId: 'c1', sort: 'price_asc', page: 2, limit: 20 },
+      headers: { tenant: 'my-store' },
+    })
+  })
+
+  it('lists the store categories', async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store' })
+    const fake = installFakeAdapter(ORIGIN, () => ok([{ id: 'c1', name: 'Aventura' }]))
+    restore = fake.restore
+
+    await expect(createCustomerApi(ORIGIN).categories.list()).resolves.toEqual([{ id: 'c1', name: 'Aventura' }])
+    expect(fake.requests[0]).toMatchObject({ method: 'GET', path: '/storefront/categories' })
+  })
+
+  it('logs a pageview with its path, referrer and session id', async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store' })
+    const fake = installFakeAdapter(ORIGIN, () => ok({ id: 'v1' }, 201))
+    restore = fake.restore
+
+    const visit = { path: '/store/my-store/product/p1', referrer: 'android-app://com.yordewhatstore.customer', sessionId: 's1' }
+    await expect(createCustomerApi(ORIGIN).visits.log(visit)).resolves.toBeUndefined()
+    expect(fake.requests[0]).toMatchObject({ method: 'POST', path: '/storefront/visits', body: visit, headers: { tenant: 'my-store' } })
+  })
+})
+
 describe('customerApi.me.delete', () => {
   it('deletes the account and only then clears the local session', async () => {
     useCustomerAuthStore.setState({ tenantSlug: 'my-store', customer, accessToken: 'at-1', refreshToken: 'rt-1' })

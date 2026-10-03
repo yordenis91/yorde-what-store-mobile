@@ -6,12 +6,13 @@ import { useCustomerAuthStore, type FulfillmentMethod } from '@yws/shared'
 import { ZelleProofCard } from '../../../../src/components/ZelleProofCard'
 
 export default function OrderConfirmedScreen() {
-  const { slug, id, orderNumber, method, whatsappUrl } = useLocalSearchParams<{
+  const { slug, id, orderNumber, method, whatsappUrl, accountNotCreated } = useLocalSearchParams<{
     slug: string
     id: string
     orderNumber?: string
     method?: FulfillmentMethod
     whatsappUrl?: string
+    accountNotCreated?: string
   }>()
   const customer = useCustomerAuthStore((s) => s.customer)
   const label = orderNumber ?? id.slice(0, 8)
@@ -21,6 +22,12 @@ export default function OrderConfirmedScreen() {
     <Screen scroll>
       <Card style={{ gap: 12, marginTop: 40, marginBottom: 12 }}>
         <Text variant="title">¡Pedido realizado!</Text>
+        {accountNotCreated ? (
+          // Account creation at checkout is best-effort and never blocks the order.
+          <Text color="danger">
+            No pudimos crear tu cuenta (¿ya tenías una con ese email?), pero tu pedido se registró igual.
+          </Text>
+        ) : null}
         {whatsappUrl ? (
           <>
             {/* The store only hears about a WhatsApp order once the customer sends the
@@ -30,6 +37,11 @@ export default function OrderConfirmedScreen() {
             </Text>
             <Button title="Abrir WhatsApp" onPress={() => Linking.openURL(whatsappUrl).catch(() => undefined)} />
           </>
+        ) : method === 'TELEGRAM' ? (
+          // The api queues the Telegram message to the store itself — nothing for the customer to send.
+          <Text color="muted">
+            Tu pedido #{label} fue enviado a la tienda por Telegram. Te lo van a confirmar en breve.
+          </Text>
         ) : isZelle ? (
           <Text color="muted">
             Guardamos tu pedido #{label}. Enviá el pago por Zelle y subí la captura para que la tienda lo confirme.
@@ -37,6 +49,7 @@ export default function OrderConfirmedScreen() {
         ) : (
           <Text color="muted">Tu pedido #{label} fue enviado a la tienda. Te lo van a confirmar en breve.</Text>
         )}
+        <Button title="Ver detalles del pedido" variant="secondary" onPress={() => router.push(`/store/${slug}/order/${id}`)} />
         <Button
           title="Seguir comprando"
           variant={whatsappUrl || isZelle ? 'secondary' : 'primary'}

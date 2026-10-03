@@ -3,6 +3,9 @@ import type { ShippingAddress } from '../types/api'
 
 const email = z.string().email('Ingresá un email válido')
 
+/** A single email field, e.g. the forgot-password form. */
+export const emailSchema = z.string().trim().pipe(email)
+
 export const loginSchema = z.object({
   email,
   password: z.string().min(1, 'Ingresá tu contraseña'),

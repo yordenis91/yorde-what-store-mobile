@@ -10,12 +10,13 @@ export default function CustomerRegisterScreen() {
   const setSession = useCustomerAuthStore((s) => s.setSession)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function onSubmit() {
-    const parsed = customerRegisterSchema.safeParse({ name, email, password })
+    const parsed = customerRegisterSchema.safeParse({ name, email, phone, password })
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? 'Revisá los datos del formulario')
       return
@@ -23,7 +24,12 @@ export default function CustomerRegisterScreen() {
     setLoading(true)
     setError(null)
     try {
-      const result = await customerApi.auth.register(parsed.data)
+      const result = await customerApi.auth.register({
+        ...parsed.data,
+        // Optional fields left blank go out as absent, not "".
+        email: parsed.data.email || undefined,
+        phone: parsed.data.phone?.trim() || undefined,
+      })
       setSession(result)
       router.back()
     } catch (err) {
@@ -40,6 +46,7 @@ export default function CustomerRegisterScreen() {
         <Card style={{ gap: 16 }}>
           <Input label="Nombre" value={name} onChangeText={setName} />
           <Input label="Correo electrónico" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+          <Input label="Teléfono (opcional)" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
           <Input label="Contraseña" secureTextEntry value={password} onChangeText={setPassword} />
           {error ? <Text color="danger">{error}</Text> : null}
           <Button title="Crear cuenta" onPress={onSubmit} loading={loading} />

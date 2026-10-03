@@ -5,6 +5,26 @@ import { Button, Card, Screen, Text } from '@yws/ui'
 import { extractErrorMessage, useCartStore, useCustomerAuthStore } from '@yws/shared'
 import { customerApi } from '../../../../src/lib/api'
 import { restoreCustomerSession } from '../../../../src/hooks/useBootstrapCustomerAuth'
+import { useTenant } from '../../../../src/hooks/queries'
+import { publishedPolicies } from '../../../../src/lib/policies'
+
+/** Links to the store's published policies — nothing at all when the store has written none. */
+function StorePolicies({ slug, policies }: { slug: string; policies: ReturnType<typeof publishedPolicies> }) {
+  if (policies.length === 0) return null
+  return (
+    <Card style={{ gap: 4, marginTop: 12 }}>
+      <Text weight="semibold">Información de la tienda</Text>
+      {policies.map((p) => (
+        <Button
+          key={p.path}
+          title={p.title}
+          variant="ghost"
+          onPress={() => router.push(`/store/${slug}/${p.path}`)}
+        />
+      ))}
+    </Card>
+  )
+}
 
 export default function AccountScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
@@ -14,6 +34,8 @@ export default function AccountScreen() {
   const clearSession = useCustomerAuthStore((s) => s.clear)
   const setStoreSlug = useCustomerAuthStore((s) => s.setTenantSlug)
   const setCartSlug = useCartStore((s) => s.setTenantSlug)
+  const { data: tenant } = useTenant(slug)
+  const policies = publishedPolicies(tenant)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -25,7 +47,7 @@ export default function AccountScreen() {
 
   if (!customer) {
     return (
-      <Screen>
+      <Screen scroll>
         <Text variant="title" style={{ marginBottom: 16 }}>
           Cuenta
         </Text>
@@ -41,6 +63,7 @@ export default function AccountScreen() {
           <Button title="Iniciar sesión" onPress={() => router.push(`/store/${slug}/auth/login`)} />
           <Button title="Crear cuenta" variant="secondary" onPress={() => router.push(`/store/${slug}/auth/register`)} />
         </Card>
+        <StorePolicies slug={slug} policies={policies} />
       </Screen>
     )
   }
@@ -97,6 +120,7 @@ export default function AccountScreen() {
         </Text>
       ) : null}
       <Button title="Eliminar mi cuenta" variant="ghost" loading={deleting} onPress={onDeleteAccount} />
+      <StorePolicies slug={slug} policies={policies} />
     </Screen>
   )
 }

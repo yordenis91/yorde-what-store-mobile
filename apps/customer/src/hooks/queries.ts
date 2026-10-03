@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import type { CartItem } from '@yws/shared'
+import type { CartItem, ProductSort } from '@yws/shared'
 import { customerApi } from '../lib/api'
 
 export function useTenant(slug: string) {
@@ -15,14 +15,20 @@ export function useTenant(slug: string) {
 const CATALOG_PAGE_SIZE = 20
 
 /** The store's catalog, a page at a time — `fetchNextPage` as the list nears its end (the api caps a page at 100). */
-export function useStorefrontProducts(slug: string, search?: string) {
+export function useStorefrontProducts(
+  slug: string,
+  filters: { search?: string; categoryId?: string; sort: ProductSort },
+) {
+  const { search, categoryId, sort } = filters
   return useInfiniteQuery({
-    queryKey: ['storefront-products', slug, 'list', search],
+    queryKey: ['storefront-products', slug, 'list', search, categoryId, sort],
     queryFn: ({ pageParam }) =>
-      customerApi.products.list({ search, page: pageParam, limit: CATALOG_PAGE_SIZE }),
+      customerApi.products.list({ search, categoryId, sort, page: pageParam, limit: CATALOG_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined),
     enabled: !!slug,
+    // Keep the current results on screen while a new search/filter loads.
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -40,14 +46,6 @@ export function useMyOrders(slug: string, signedIn: boolean) {
     queryKey: ['my-orders', slug],
     queryFn: () => customerApi.me.orders({ limit: 30 }),
     enabled: !!slug && signedIn,
-  })
-}
-
-export function useMyOrder(slug: string, id: string) {
-  return useQuery({
-    queryKey: ['my-orders', slug, id],
-    queryFn: () => customerApi.me.order(id),
-    enabled: !!slug && !!id,
   })
 }
 
@@ -86,6 +84,15 @@ export function useStorefrontShippings(slug: string) {
   return useQuery({
     queryKey: ['storefront-shipping', slug],
     queryFn: () => customerApi.shipping.list(),
+    enabled: !!slug,
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useStorefrontCategories(slug: string) {
+  return useQuery({
+    queryKey: ['storefront-categories', slug],
+    queryFn: () => customerApi.categories.list(),
     enabled: !!slug,
     staleTime: 5 * 60_000,
   })

@@ -28,7 +28,7 @@ export default function MyOrdersScreen() {
         contentContainerStyle={{ gap: 10 }}
         ListEmptyComponent={<EmptyState title="Todavía no hay pedidos" />}
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(`/store/${slug}/orders/${item.id}`)}>
+          <Pressable onPress={() => router.push(`/store/${slug}/order/${item.id}`)}>
             <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ gap: 2 }}>
                 <Text weight="semibold">#{item.orderNumber}</Text>

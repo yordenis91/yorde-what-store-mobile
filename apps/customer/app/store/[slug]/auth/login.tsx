@@ -41,6 +41,11 @@ export default function CustomerLoginScreen() {
           <Input label="Contraseña" secureTextEntry value={password} onChangeText={setPassword} />
           {error ? <Text color="danger">{error}</Text> : null}
           <Button title="Iniciar sesión" onPress={onSubmit} loading={loading} />
+          <Button
+            title="¿Olvidaste tu contraseña?"
+            variant="ghost"
+            onPress={() => router.push(`/store/${slug}/auth/forgot-password`)}
+          />
           <Button title="Crear una cuenta" variant="ghost" onPress={() => router.replace(`/store/${slug}/auth/register`)} />
         </Card>
       </View>

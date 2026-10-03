@@ -12,14 +12,16 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://yws.yordeniscorreoso.com/api/v1",
-        "EXPO_PUBLIC_STOREFRONT_ROOT_DOMAIN": "yws.yordeniscorreoso.com"
+        "EXPO_PUBLIC_STOREFRONT_ROOT_DOMAIN": "yws.yordeniscorreoso.com",
+        "EXPO_PUBLIC_STOREFRONT_URL": "https://yws.yordeniscorreoso.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://yws.yordeniscorreoso.com/api/v1",
-        "EXPO_PUBLIC_STOREFRONT_ROOT_DOMAIN": "yws.yordeniscorreoso.com"
+        "EXPO_PUBLIC_STOREFRONT_ROOT_DOMAIN": "yws.yordeniscorreoso.com",
+        "EXPO_PUBLIC_STOREFRONT_URL": "https://yws.yordeniscorreoso.com"
       }
     }
   },

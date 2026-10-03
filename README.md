@@ -172,25 +172,49 @@ Real delivery (Expo push API / FCM / APNs) replacing `NoOpPushService` is a
 deliberate post-MVP follow-up on the api side — nothing on the mobile side
 needs to change when that lands.
 
+## Customer app: what it covers
+
+It mirrors the web storefront. These are the parts that need context:
+
+- **Checkout methods.** WhatsApp, Telegram and Zelle, each shown only when
+  the store has it enabled (`whatsappEnabled`, `telegramEnabled`, or the
+  presence of `zellePaymentInfo`). For Zelle, the customer uploads the payment
+  screenshot (`expo-image-picker`) after the order exists, from the
+  confirmation or order screen. It never blocks placing the order.
+- **Shared links (Android App Links).** `https://yws.yordeniscorreoso.com/store/...`
+  opens the app when it's installed. The intent filter is in
+  `apps/customer/app.json`. The web serves
+  `/.well-known/assetlinks.json` (in `yorde-what-store-client`) with the
+  SHA-256 of the app's EAS signing certificate. If that keystore ever
+  changes, update the fingerprint there. The app's routes use the same paths
+  as the web storefront: `product/<id>`, `order/<id>`, `login?token=`, and
+  the four policy pages.
+- **Images.** The api returns `/uploads/...` relative to its own origin, so
+  every image goes through `mediaUrl()` (`createMediaUrlResolver` in
+  `packages/shared`).
+- **Visits.** Each store screen logs a pageview (`POST /storefront/visits`)
+  with its own anonymous per-install id. Orders send the same id, so the
+  dashboard's conversion rate counts app shoppers. That id is deliberately
+  not the `deviceId`, which binds refresh tokens.
+- **Share links** use `EXPO_PUBLIC_STOREFRONT_URL`. It falls back to the
+  api's origin, which is the same domain in production.
+
 ## What's deliberately not done yet
 
-- **Product variant selection** — `product/[id].tsx` in the customer app
-  disables "add to cart" for products with variants rather than guessing a
-  UI for it; the web client's variant picker should be ported, not
-  reinvented.
-- **Stripe/MercadoPago checkout** — checkout only implements the `WHATSAPP`
-  fulfillment path (every tenant has it; it's the product's primary channel).
-  Card checkout needs the same in-app browser / deep-link-return flow the
-  web client uses (`createStripeCheckout` / `createMercadoPagoCheckout`),
-  adapted for a WebView or `expo-web-browser`.
-- **App icons/splash screens** — `app.json` has no `icon`/`splash` keys yet
-  (no brand assets available in this session); Expo will use its own
-  placeholder until real assets are added.
-- **Screen and E2E tests** — `pnpm test` runs `packages/shared`'s unit
-  tests (api clients, refresh/session handling, stores, utils), which go
-  through a fake axios adapter (`src/test-utils/fake-adapter.ts`) instead of
-  the network. Both apps have `jest-expo` wired up but no screen tests yet,
-  and there's no E2E suite.
+- **Stripe/MercadoPago checkout.** These need the in-app-browser and
+  deep-link-return flow that the web client uses (`createStripeCheckout` /
+  `createMercadoPagoCheckout`), adapted for `expo-web-browser`.
+- **iOS Universal Links.** These need an Apple Developer Team ID for
+  `apple-app-site-association`. Until then, iOS opens shared links in the
+  browser.
+- **App icons/splash screens.** `app.json` has no `icon`/`splash` keys yet,
+  because no brand assets were available. Expo uses its own placeholder
+  until real assets are added.
+- **Screen and E2E tests.** `pnpm test` runs `packages/shared`'s unit tests
+  (api clients, refresh/session handling, stores, utils). They go through a
+  fake axios adapter (`src/test-utils/fake-adapter.ts`) instead of the
+  network. Both apps have `jest-expo` wired up but no screen tests yet, and
+  there's no E2E suite.
 
 ## Design tokens & theming
 

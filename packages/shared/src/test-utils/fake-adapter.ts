@@ -8,6 +8,8 @@ export interface FakeRequest {
   /** Path relative to the api origin, e.g. `/auth/mobile/refresh` — baseURL already resolved. */
   path: string
   headers: Record<string, string | undefined>
+  /** Query parameters as axios received them (`config.params`), not yet serialized into the path. */
+  params: unknown
   body: unknown
 }
 
@@ -32,6 +34,7 @@ export function installFakeAdapter(origin: string, handler: FakeHandler) {
         authorization: config.headers.get('Authorization')?.toString(),
         tenant: config.headers.get('X-Tenant-ID')?.toString(),
       },
+      params: config.params,
       body: typeof config.data === 'string' ? JSON.parse(config.data) : config.data,
     }
     requests.push(request)
