@@ -11,5 +11,11 @@ module.exports = ({ config }) => ({
   extra: {
     ...config.extra,
     apiUrl: process.env.EXPO_PUBLIC_API_URL || config.extra?.apiUrl,
+    // The web storefront's base URL, for the order links the seller shares.
+    // Left out when unset (the app then uses the api's origin): the
+    // serialized config turns `null` into `{}`.
+    ...(process.env.EXPO_PUBLIC_STOREFRONT_URL
+      ? { storefrontUrl: process.env.EXPO_PUBLIC_STOREFRONT_URL }
+      : null),
   },
 })

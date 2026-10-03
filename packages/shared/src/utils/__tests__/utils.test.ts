@@ -1,5 +1,6 @@
 import { discountPercent, formatMoney } from '../format'
 import { createMediaUrlResolver } from '../media'
+import { publicOrderLink, resolveStorefrontBaseUrl, storefrontLink } from '../links'
 import { cleanShippingAddress, createStoreSlugSchema, deliveryAddressError, storeSlugSchema } from '../validation'
 import { buildWhatsAppUrl } from '../whatsapp'
 
@@ -131,5 +132,22 @@ describe('delivery address', () => {
       line1: 'Calle 8 #123',
       city: 'Miami',
     })
+  })
+})
+
+describe('storefront links', () => {
+  it('uses the configured web URL, else the api origin', () => {
+    expect(resolveStorefrontBaseUrl('https://yws.example.com/', 'http://10.0.0.2:3000/api/v1')).toBe('https://yws.example.com')
+    expect(resolveStorefrontBaseUrl(undefined, 'https://yws.example.com/api/v1')).toBe('https://yws.example.com')
+    expect(resolveStorefrontBaseUrl({}, 'https://yws.example.com/api/v1')).toBe('https://yws.example.com')
+  })
+
+  it('builds /store/<slug> links, including the public order page', () => {
+    expect(storefrontLink('https://yws.example.com', 'mi-tienda', '/product/p1')).toBe(
+      'https://yws.example.com/store/mi-tienda/product/p1',
+    )
+    expect(publicOrderLink('https://yws.example.com', 'mi-tienda', 'o1')).toBe(
+      'https://yws.example.com/store/mi-tienda/order/o1',
+    )
   })
 })

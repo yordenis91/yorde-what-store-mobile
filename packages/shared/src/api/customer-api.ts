@@ -174,9 +174,9 @@ export function createCustomerApi(baseURL: string) {
     },
     me: {
       get: () => unwrap<Customer>(client.get('/storefront/customers/me')),
-      orders: (params?: { page?: number; limit?: number }) =>
-        unwrap<PaginatedResult<CustomerOrderSummary>>(client.get('/storefront/customers/orders', { params })),
-      order: (id: string) => unwrap<CustomerOrderSummary>(client.get(`/storefront/customers/orders/${id}`)),
+      /** Every order of the signed-in customer, newest first — a plain array (the api doesn't paginate it). */
+      orders: () => unwrap<CustomerOrderSummary[]>(client.get('/storefront/customers/orders')),
+      order: (id: string) => unwrap<Order>(client.get(`/storefront/customers/orders/${id}`)),
       /**
        * Self-service account deletion (required by the App Store and Google
        * Play for apps that let users create accounts). The api scrubs the

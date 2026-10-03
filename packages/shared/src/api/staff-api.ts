@@ -6,12 +6,15 @@ import type {
   ApiEnvelope,
   CustomerDetail,
   CustomerListItem,
+  CustomerSegment,
   DashboardRange,
   DashboardSummary,
   DevicePlatform,
   Order,
+  OrderStatus,
   PaginatedResult,
   Product,
+  ProductImage,
   Tenant,
   User,
 } from '../types/api'
@@ -170,15 +173,37 @@ export function createStaffApi(baseURL: string) {
       list: (params?: { page?: number; limit?: number; search?: string }) =>
         unwrap<PaginatedResult<Product>>(client.get('/products', { params })),
       get: (id: string) => unwrap<Product>(client.get(`/products/${id}`)),
+      /**
+       * Partial update (PATCH /products/:id). Deliberately limited to the
+       * fields the app edits: sending `variants` would make the api delete and
+       * recreate them with new ids, breaking any cart line pointing at the old ones.
+       */
+      update: (id: string, changes: ProductQuickEdit) => unwrap<Product>(client.patch(`/products/${id}`, changes)),
+      /** Uploads a photo (POST /uploads/image) and attaches it to the product. */
+      addImage: async (id: string, image: PickedImage, options?: { isCover?: boolean }) => {
+        const form = new FormData()
+        // React Native's FormData takes a file as { uri, name, type } rather than a Blob.
+        form.append('file', { uri: image.uri, name: image.name, type: image.mimeType } as unknown as Blob)
+        const { url } = await unwrap<{ url: string }>(
+          client.post('/uploads/image', form, { headers: { 'Content-Type': 'multipart/form-data' } }),
+        )
+        return unwrap<ProductImage>(client.post(`/products/${id}/images`, { url, isCover: options?.isCover }))
+      },
+      removeImage: (id: string, imageId: string) => client.delete(`/products/${id}/images/${imageId}`),
+      setCoverImage: (id: string, imageId: string) => client.patch(`/products/${id}/images/${imageId}/cover`),
     },
     orders: {
-      list: (params?: { page?: number; limit?: number; status?: string }) =>
-        unwrap<PaginatedResult<Order>>(client.get('/orders', { params })),
+      list: (params?: OrderListParams) => unwrap<PaginatedResult<Order>>(client.get('/orders', { params })),
       get: (id: string) => unwrap<Order>(client.get(`/orders/${id}`)),
-      updateStatus: (id: string, status: string) => unwrap<Order>(client.patch(`/orders/${id}/status`, { status })),
+      updateStatus: (id: string, status: OrderStatus) =>
+        unwrap<Order>(client.patch(`/orders/${id}/status`, { status })),
+      /** Zelle only: marks the order paid and confirmed once the store has checked the customer's proof. Needs a proof to have been sent. */
+      confirmZellePayment: (id: string) => unwrap<Order>(client.post(`/orders/${id}/confirm-zelle-payment`)),
+      /** Zelle only: discards the proof (the order stays) so the customer can send another one. */
+      rejectZellePayment: (id: string) => unwrap<Order>(client.post(`/orders/${id}/reject-zelle-payment`)),
     },
     customers: {
-      list: (params?: { page?: number; limit?: number; search?: string }) =>
+      list: (params?: { page?: number; limit?: number; search?: string; segment?: CustomerSegment }) =>
         unwrap<PaginatedResult<CustomerListItem>>(client.get('/customers', { params })),
       get: (id: string) => unwrap<CustomerDetail>(client.get(`/customers/${id}`)),
     },
@@ -193,6 +218,35 @@ export function createStaffApi(baseURL: string) {
       unregister: (token: string) => client.delete(`/devices/${encodeURIComponent(token)}`),
     },
   }
+}
+
+/** Filters the api accepts on `GET /orders` (OrderQueryDto). `search` matches the order number or customer name. */
+export interface OrderListParams {
+  page?: number
+  limit?: number
+  search?: string
+  status?: OrderStatus
+  sortBy?: 'createdAt' | 'orderNumber' | 'customerName' | 'grandTotal'
+  sortDir?: 'asc' | 'desc'
+  /** ISO date strings. */
+  dateFrom?: string
+  dateTo?: string
+}
+
+/** The product fields the app edits in place (see `products.update`). Prices go as numbers, like the web form sends them. */
+export interface ProductQuickEdit {
+  price?: number
+  compareAtPrice?: number | null
+  quantity?: number
+  isActive?: boolean
+  isPublished?: boolean
+}
+
+/** A picked image as React Native's FormData needs it. */
+export interface PickedImage {
+  uri: string
+  name: string
+  mimeType: string
 }
 
 export type StaffApi = ReturnType<typeof createStaffApi>

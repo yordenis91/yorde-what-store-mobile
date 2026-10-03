@@ -44,7 +44,7 @@ export function useStorefrontProduct(slug: string, id: string) {
 export function useMyOrders(slug: string, signedIn: boolean) {
   return useQuery({
     queryKey: ['my-orders', slug],
-    queryFn: () => customerApi.me.orders({ limit: 30 }),
+    queryFn: () => customerApi.me.orders(),
     enabled: !!slug && signedIn,
   })
 }

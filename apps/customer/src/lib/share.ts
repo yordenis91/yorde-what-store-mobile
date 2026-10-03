@@ -1,19 +1,14 @@
 import Constants from 'expo-constants'
 import { Share } from 'react-native'
-import type { Product, PublicTenant } from '@yws/shared'
+import { resolveStorefrontBaseUrl, storefrontLink, type Product, type PublicTenant } from '@yws/shared'
 import { API_URL } from './api'
 
-const configured: unknown = Constants.expoConfig?.extra?.storefrontUrl
-/** The web storefront's base URL — in production the web and the api share a domain, so the api's origin is the fallback. */
-const STOREFRONT_URL = (
-  typeof configured === 'string' && configured
-    ? configured
-    : (API_URL.match(/^[a-z][a-z0-9+.-]*:\/\/[^/?#]+/i)?.[0] ?? '')
-).replace(/\/+$/, '')
+/** The web storefront's base URL (EXPO_PUBLIC_STOREFRONT_URL, else the api's origin). */
+const STOREFRONT_URL = resolveStorefrontBaseUrl(Constants.expoConfig?.extra?.storefrontUrl, API_URL)
 
-/** Web links in the storefront's `/store/<slug>` form — the one that opens in the app (Android App Links) and works for anyone without it. */
+/** Web links in the storefront's `/store/<slug>` form — they open in the app (Android App Links) and work for anyone without it. */
 export function storeLink(slug: string, subpath = ''): string {
-  return `${STOREFRONT_URL}/store/${slug}${subpath}`
+  return storefrontLink(STOREFRONT_URL, slug, subpath)
 }
 
 function share(message: string, url: string) {

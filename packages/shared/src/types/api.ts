@@ -173,6 +173,10 @@ export interface Order {
   items: OrderItem[]
   createdAt: string
   invoiceAvailable?: boolean
+  /** The delivery option chosen at checkout — null for pickup. */
+  shipping?: { id: string; name: string; cost: string } | null
+  /** Collected only for delivery (see ShippingAddress). */
+  shippingAddress?: ShippingAddress | null
   /** Zelle only: the customer's uploaded proof and optional confirmation number. Cleared if the store rejects it. */
   paymentProofUrl?: string | null
   paymentReference?: string | null

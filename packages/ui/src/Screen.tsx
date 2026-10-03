@@ -8,6 +8,8 @@ interface ScreenProps extends ViewProps {
   padded?: boolean
   /** Pull-to-refresh control — only applies with `scroll`. */
   refreshControl?: ScrollViewProps['refreshControl']
+  /** Only applies with `scroll` — e.g. "handled" so a tap on a button doesn't just dismiss the keyboard. */
+  keyboardShouldPersistTaps?: ScrollViewProps['keyboardShouldPersistTaps']
 }
 
 /** Standard screen container: safe-area + background + optional scroll, used by every route. */
@@ -15,6 +17,7 @@ export function Screen({
   scroll = false,
   padded = true,
   refreshControl,
+  keyboardShouldPersistTaps,
   style,
   children,
   ...rest
@@ -26,7 +29,7 @@ export function Screen({
       <Container
         style={[{ flex: scroll ? undefined : 1, padding: padded ? theme.spacing.lg : 0 }, style]}
         contentContainerStyle={scroll ? { padding: padded ? theme.spacing.lg : 0 } : undefined}
-        {...(scroll ? { refreshControl } : null)}
+        {...(scroll ? { refreshControl, keyboardShouldPersistTaps } : null)}
         {...rest}
       >
         {children}

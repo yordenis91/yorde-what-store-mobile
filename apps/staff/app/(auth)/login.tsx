@@ -47,6 +47,7 @@ export default function LoginScreen() {
           <Input label="Contraseña" secureTextEntry value={password} onChangeText={setPassword} />
           {error ? <Text color="danger">{error}</Text> : null}
           <Button title="Iniciar sesión" onPress={onSubmit} loading={loading} />
+          <Button title="¿Olvidaste tu contraseña?" variant="ghost" onPress={() => router.push('/(auth)/forgot-password')} />
         </Card>
       </View>
     </Screen>

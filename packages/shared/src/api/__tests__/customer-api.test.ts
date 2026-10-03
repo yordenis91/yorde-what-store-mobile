@@ -185,6 +185,18 @@ describe('customerApi catalog and analytics', () => {
   })
 })
 
+describe('customerApi.me.orders', () => {
+  it("returns the api's plain array of orders (it isn't paginated)", async () => {
+    useCustomerAuthStore.setState({ tenantSlug: 'my-store', customer, accessToken: 'at-1' })
+    const list = [{ id: 'o1', orderNumber: 'ORD-1' }]
+    const fake = installFakeAdapter(ORIGIN, () => ok(list))
+    restore = fake.restore
+
+    await expect(createCustomerApi(ORIGIN).me.orders()).resolves.toEqual(list)
+    expect(fake.requests[0]).toMatchObject({ method: 'GET', path: '/storefront/customers/orders', params: undefined })
+  })
+})
+
 describe('customerApi.me.delete', () => {
   it('deletes the account and only then clears the local session', async () => {
     useCustomerAuthStore.setState({ tenantSlug: 'my-store', customer, accessToken: 'at-1', refreshToken: 'rt-1' })

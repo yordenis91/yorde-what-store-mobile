@@ -165,3 +165,54 @@ describe('useStaffAuthStore persistence', () => {
     expect(useStaffAuthStore.getState()).toMatchObject({ activeTenant: null, lastTenantId: 't1' })
   })
 })
+
+describe('staffApi orders, Zelle and products', () => {
+  /** A signed-in seller on store t1; every call answers `reply`. */
+  function signedIn(reply: (req: { method: string; path: string }) => FakeReply = () => ok({})) {
+    useStaffAuthStore.setState({ accessToken: 'at-1', refreshToken: 'rt-1', activeTenant: tenant('t1') })
+    const fake = installFakeAdapter(ORIGIN, reply)
+    restore = fake.restore
+    return { api: createStaffApi(BASE), requests: fake.requests }
+  }
+
+  it('passes the order filters to the list', async () => {
+    const { api, requests } = signedIn(() => ok({ items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } }))
+    await api.orders.list({ status: 'PENDING', search: 'Ana', page: 2, limit: 20 })
+    expect(requests[0]).toMatchObject({
+      path: '/api/v1/orders',
+      params: { status: 'PENDING', search: 'Ana', page: 2, limit: 20 },
+      headers: { authorization: 'Bearer at-1', tenant: 't1' },
+    })
+  })
+
+  it.each([
+    ['confirmZellePayment', '/api/v1/orders/o1/confirm-zelle-payment'],
+    ['rejectZellePayment', '/api/v1/orders/o1/reject-zelle-payment'],
+  ] as const)('%s posts to its endpoint', async (method, path) => {
+    const { api, requests } = signedIn(() => ok({ id: 'o1' }))
+    await api.orders[method]('o1')
+    expect(requests[0]).toMatchObject({ method: 'POST', path })
+  })
+
+  it('patches only the fields the app edits on a product', async () => {
+    const { api, requests } = signedIn(() => ok({ id: 'p1' }))
+    await api.products.update('p1', { price: 12.5, quantity: 3, isPublished: false })
+    expect(requests[0]).toMatchObject({
+      method: 'PATCH',
+      path: '/api/v1/products/p1',
+      body: { price: 12.5, quantity: 3, isPublished: false },
+    })
+  })
+
+  it('uploads a photo, then attaches the returned url to the product', async () => {
+    const { api, requests } = signedIn((req) =>
+      req.path === '/api/v1/uploads/image' ? ok({ url: '/uploads/t1/a.webp' }) : ok({ id: 'img1' }),
+    )
+    await api.products.addImage('p1', { uri: 'file:///a.jpg', name: 'a.jpg', mimeType: 'image/jpeg' }, { isCover: true })
+    expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+      'POST /api/v1/uploads/image',
+      'POST /api/v1/products/p1/images',
+    ])
+    expect(requests[1]!.body).toEqual({ url: '/uploads/t1/a.webp', isCover: true })
+  })
+})
