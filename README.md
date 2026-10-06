@@ -172,6 +172,37 @@ Real delivery (Expo push API / FCM / APNs) replacing `NoOpPushService` is a
 deliberate post-MVP follow-up on the api side — nothing on the mobile side
 needs to change when that lands.
 
+## Staff app: store settings
+
+The Ajustes tab is the store's own configuration, at parity with the web
+admin's `StoreSettingsPage` — the seller no longer needs a desktop to change
+the logo, a policy, the Zelle recipient or the payment credentials. It's an
+index over seven sections under `app/store-settings/` (general, appearance,
+social, sales channels, payments, policies, email), each saving on its own.
+
+Three things about it are not arbitrary:
+
+- **Sections save independently.** Each save sends only its own fields. The
+  api runs with `forbidNonWhitelisted: true`, so a round-tripped tenant object
+  would be a 400 — and a full-object save would also overwrite whatever
+  someone changed on the web since the screen loaded.
+- **The role gates the UI, not the api's answer.** `PATCH /tenants/current`
+  and both payment-settings endpoints are `@Roles('OWNER')`. A collaborator
+  gets the read-only view and an explanation, and the owner-only queries never
+  fire for them.
+- **A payment save requires the provider's full credential set.**
+  `PUT /tenants/current/payment-settings` replaces the stored (encrypted)
+  credentials with whatever it receives and never returns them, so saving a
+  blank form is how a store loses working keys — which is what the web panel
+  does today. `paymentCredentialsError()` in `packages/shared` is the guard.
+  Zelle is the exception that prefills: its recipient is public by design
+  (`GET /tenants/storefront/:slug`'s `zellePaymentInfo`), so editing the
+  instructions can't blank it.
+
+Known gap, api-side: there's no endpoint that flips a provider's `isEnabled`
+without the credentials, so **turning Stripe or MercadoPago off from the app
+means retyping the keys**. The screen says so.
+
 ## Customer app: what it covers
 
 It mirrors the web storefront. These are the parts that need context:

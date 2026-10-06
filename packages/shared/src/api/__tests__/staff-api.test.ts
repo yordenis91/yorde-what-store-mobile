@@ -1,4 +1,5 @@
-import { createStaffApi } from '../staff-api'
+import { createStaffApi, mergeTenant, paymentCredentialsError, type UpsertPaymentSetting } from '../staff-api'
+import { extractErrorMessage } from '../http-factory'
 import { useStaffAuthStore } from '../../stores/staff-auth.store'
 import { installFakeAdapter, ok, type FakeHandler, type FakeReply } from '../../test-utils/fake-adapter'
 import { TEST_DEVICE_ID, flushPersist, secureStoreData } from '../../test-utils/native-mocks'
@@ -47,6 +48,14 @@ function fakeApi(options: { tenants?: Tenant[]; refreshReply?: FakeReply } = {})
 }
 
 let restore: (() => void) | undefined
+
+/** A signed-in seller on store t1; every call answers `reply`. */
+function signedIn(reply: (req: { method: string; path: string }) => FakeReply = () => ok({})) {
+  useStaffAuthStore.setState({ accessToken: 'at-1', refreshToken: 'rt-1', activeTenant: tenant('t1') })
+  const fake = installFakeAdapter(ORIGIN, reply)
+  restore = fake.restore
+  return { api: createStaffApi(BASE), requests: fake.requests }
+}
 
 beforeEach(() => {
   secureStoreData.clear()
@@ -167,14 +176,6 @@ describe('useStaffAuthStore persistence', () => {
 })
 
 describe('staffApi orders, Zelle and products', () => {
-  /** A signed-in seller on store t1; every call answers `reply`. */
-  function signedIn(reply: (req: { method: string; path: string }) => FakeReply = () => ok({})) {
-    useStaffAuthStore.setState({ accessToken: 'at-1', refreshToken: 'rt-1', activeTenant: tenant('t1') })
-    const fake = installFakeAdapter(ORIGIN, reply)
-    restore = fake.restore
-    return { api: createStaffApi(BASE), requests: fake.requests }
-  }
-
   it('passes the order filters to the list', async () => {
     const { api, requests } = signedIn(() => ok({ items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } }))
     await api.orders.list({ status: 'PENDING', search: 'Ana', page: 2, limit: 20 })
@@ -214,5 +215,107 @@ describe('staffApi orders, Zelle and products', () => {
       'POST /api/v1/products/p1/images',
     ])
     expect(requests[1]!.body).toEqual({ url: '/uploads/t1/a.webp', isCover: true })
+  })
+})
+
+describe('staffApi store settings', () => {
+  it('patches only the section’s own fields, and sends null to clear one', async () => {
+    const { api, requests } = signedIn(() => ok({ id: 't1' }))
+    await api.tenants.update({ name: 'Tienda Ana', tagline: null, tracksInventory: true })
+    expect(requests[0]).toMatchObject({
+      method: 'PATCH',
+      path: '/api/v1/tenants/current',
+      headers: { authorization: 'Bearer at-1', tenant: 't1' },
+      body: { name: 'Tienda Ana', tagline: null, tracksInventory: true },
+    })
+    // The api runs with forbidNonWhitelisted: anything beyond the section's
+    // own fields (id, slug, smtpPasswordSet…) would turn the save into a 400.
+    expect(Object.keys(requests[0]!.body as object)).toEqual(['name', 'tagline', 'tracksInventory'])
+  })
+
+  it('surfaces the api’s own message when a collaborator’s save is refused', async () => {
+    const { api } = signedIn(() => ({ status: 403, data: { message: 'Insufficient role for this resource' } }))
+    const error = await api.tenants.update({ name: 'x' }).catch((err: unknown) => err)
+    expect(extractErrorMessage(error, 'fallback')).toBe('Insufficient role for this resource')
+  })
+
+  it('puts one provider’s credentials and on/off state', async () => {
+    const { api, requests } = signedIn(() => ok({ id: 'ps1', provider: 'ZELLE', isEnabled: true }))
+    await api.tenants.upsertPaymentSetting({
+      provider: 'ZELLE',
+      isEnabled: true,
+      credentials: { recipientName: 'Ana', recipientEmail: 'ana@pay.test', recipientPhone: '', instructions: '' },
+    })
+    expect(requests[0]).toMatchObject({
+      method: 'PUT',
+      path: '/api/v1/tenants/current/payment-settings',
+      body: { provider: 'ZELLE', isEnabled: true, credentials: { recipientName: 'Ana' } },
+    })
+  })
+
+  it('uploads a store image with its resize type and resolves the stored path', async () => {
+    const { api, requests } = signedIn(() => ok({ url: '/uploads/t1/logo.webp' }))
+    await expect(
+      api.tenants.uploadImage({ uri: 'file:///logo.png', name: 'logo.png', mimeType: 'image/png' }, 'logo'),
+    ).resolves.toBe('/uploads/t1/logo.webp')
+    expect(requests[0]).toMatchObject({ method: 'POST', path: '/api/v1/uploads/image' })
+  })
+
+  it('reads the Zelle recipient from the public storefront projection', async () => {
+    const { api, requests } = signedIn(() => ok({ slug: 'ana', zellePaymentInfo: { recipientName: 'Ana' } }))
+    await expect(api.tenants.storefront('ana')).resolves.toMatchObject({
+      zellePaymentInfo: { recipientName: 'Ana' },
+    })
+    expect(requests[0]!.path).toBe('/api/v1/tenants/storefront/ana')
+  })
+})
+
+describe('paymentCredentialsError', () => {
+  const zelle = (credentials: Partial<Record<string, string>>): UpsertPaymentSetting => ({
+    provider: 'ZELLE',
+    isEnabled: true,
+    credentials: { recipientName: '', recipientEmail: '', recipientPhone: '', instructions: '', ...credentials },
+  })
+
+  // The api replaces the stored credentials blob with whatever it receives and
+  // never returns it, so a half-empty save is how a store loses live keys.
+  it('refuses an incomplete Stripe key pair', () => {
+    expect(
+      paymentCredentialsError({
+        provider: 'STRIPE',
+        isEnabled: true,
+        credentials: { publishableKey: 'pk_1', secretKey: '  ' },
+      }),
+    ).toMatch(/clave secreta/)
+  })
+
+  it('refuses an empty MercadoPago token', () => {
+    expect(
+      paymentCredentialsError({ provider: 'MERCADOPAGO', isEnabled: false, credentials: { accessToken: '' } }),
+    ).toMatch(/access token/)
+  })
+
+  it('requires a Zelle recipient but not the optional phone or instructions', () => {
+    expect(paymentCredentialsError(zelle({ recipientEmail: 'ana@pay.test' }))).toMatch(/nombre/)
+    expect(paymentCredentialsError(zelle({ recipientName: 'Ana' }))).toMatch(/correo/)
+    expect(paymentCredentialsError(zelle({ recipientName: 'Ana', recipientEmail: 'ana@pay.test' }))).toBeNull()
+  })
+})
+
+describe('mergeTenant', () => {
+  // Only GET /tenants/me adds myRole; findCurrent (the GET and the PATCH
+  // response) doesn't, so replacing the stored tenant would demote the owner
+  // to a read-only collaborator until the next app start.
+  it('keeps the role the settings response omits', () => {
+    const stored = { ...tenant('t1'), myRole: 'OWNER' as const }
+    expect(mergeTenant(stored, { ...tenant('t1'), name: 'Nuevo nombre' })).toMatchObject({
+      name: 'Nuevo nombre',
+      myRole: 'OWNER',
+    })
+  })
+
+  it('prefers a role the response does carry', () => {
+    const stored = { ...tenant('t1'), myRole: 'OWNER' as const }
+    expect(mergeTenant(stored, { ...tenant('t1'), myRole: 'STAFF' }).myRole).toBe('STAFF')
   })
 })

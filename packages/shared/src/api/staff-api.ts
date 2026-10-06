@@ -13,8 +13,11 @@ import type {
   Order,
   OrderStatus,
   PaginatedResult,
+  PaymentSetting,
+  PlanEntitlements,
   Product,
   ProductImage,
+  PublicTenant,
   Tenant,
   User,
 } from '../types/api'
@@ -165,9 +168,61 @@ export function createStaffApi(baseURL: string) {
         unwrap<{ reset: boolean }>(client.post('/auth/reset-password', { token, password })),
     },
     tenants: {
-      /** Every tenant the current staff user belongs to — feeds the tenant switcher. */
+      /** Every tenant the current staff user belongs to — feeds the tenant switcher. The only call that returns `myRole`. */
       listMine: () => unwrap<Tenant[]>(client.get('/tenants/me')),
+      /** The active store's full settings. Readable by OWNER and STAFF alike; `smtpPassword` comes back as the `smtpPasswordSet` flag. */
       current: () => unwrap<Tenant>(client.get('/tenants/current')),
+      /**
+       * Partial update of the active store's settings (`PATCH /tenants/current`).
+       * OWNER only — a STAFF session gets 403, so gate the UI on
+       * `activeTenant.myRole` instead of letting the seller fill a form the
+       * api will refuse. Send only the keys the section being saved owns: the
+       * api accepts no field outside `UpdateTenantDto` (it runs with
+       * `forbidNonWhitelisted: true`), and a full-object save would overwrite
+       * whatever someone changed on the web since this screen loaded.
+       */
+      update: (changes: TenantSettingsUpdate) => unwrap<Tenant>(client.patch('/tenants/current', changes)),
+      /**
+       * Uploads a store image (`POST /uploads/image`) and resolves its
+       * `/uploads/...` path, to be sent back in `update()`. `type` decides the
+       * server-side resize: 'logo' is capped much smaller than a banner.
+       */
+      uploadImage: async (image: PickedImage, type?: UploadImageType) => {
+        const form = new FormData()
+        // React Native's FormData takes a file as { uri, name, type } rather than a Blob.
+        form.append('file', { uri: image.uri, name: image.name, type: image.mimeType } as unknown as Blob)
+        if (type) form.append('type', type)
+        const { url } = await unwrap<{ url: string }>(
+          client.post('/uploads/image', form, { headers: { 'Content-Type': 'multipart/form-data' } }),
+        )
+        return url
+      },
+      /** Which payment providers the store has on. OWNER only. Never includes the credentials — the api strips them. */
+      listPaymentSettings: () => unwrap<PaymentSetting[]>(client.get('/tenants/current/payment-settings')),
+      /**
+       * Saves one provider's credentials and on/off state. OWNER only.
+       *
+       * The api **replaces** the stored (encrypted) credentials blob with
+       * exactly what goes here and never returns it to anyone, so a save with
+       * blank fields silently wipes working keys. Always send the provider's
+       * full credential set — `paymentCredentialsError()` is the guard the
+       * screens use before calling this.
+       */
+      upsertPaymentSetting: (payload: UpsertPaymentSetting) =>
+        unwrap<PaymentSetting>(client.put('/tenants/current/payment-settings', payload)),
+      /**
+       * The public storefront projection (`GET /tenants/storefront/:slug`,
+       * unauthenticated). Used for one thing here: it carries
+       * `zellePaymentInfo` — the Zelle recipient, which is public by design
+       * since the customer needs it to pay — so the payments screen can
+       * prefill those fields instead of making the owner retype them and risk
+       * blanking them. Present only while Zelle is enabled and in the plan.
+       */
+      storefront: (slug: string) => unwrap<PublicTenant>(client.get(`/tenants/storefront/${slug}`)),
+    },
+    plans: {
+      /** Effective plan limits. OWNER and STAFF both allowed — it's what says a channel is locked before a save fails. */
+      entitlements: () => unwrap<PlanEntitlements>(client.get('/plans/current/entitlements')),
     },
     products: {
       list: (params?: { page?: number; limit?: number; search?: string }) =>
@@ -247,6 +302,93 @@ export interface PickedImage {
   uri: string
   name: string
   mimeType: string
+}
+
+/** 'logo' is resized much smaller server-side than a banner or a product photo. Mirrors the web's `UploadImageType`. */
+export type UploadImageType = 'logo' | 'banner' | 'product'
+
+/**
+ * The store settings the app edits. Every key is a field of the api's
+ * `UpdateTenantDto`: the api runs with `forbidNonWhitelisted: true`, so one
+ * extra key (`id`, `slug`, `smtpPasswordSet`, …) turns the whole save into a
+ * 400. `null` clears a value; omitting a key leaves it as it is.
+ */
+export interface TenantSettingsUpdate {
+  name?: string
+  tagline?: string | null
+  currencySymbol?: string
+  logoUrl?: string | null
+  bannerUrl?: string | null
+  invoiceLogoUrl?: string | null
+  theme?: string
+  tracksInventory?: boolean
+  whatsappEnabled?: boolean
+  whatsappNumber?: string | null
+  telegramEnabled?: boolean
+  telegramBotToken?: string | null
+  telegramChatId?: string | null
+  orderMessageTemplate?: string
+  termsOfSaleContent?: string | null
+  shippingPolicyContent?: string | null
+  returnPolicyContent?: string | null
+  privacyPolicyContent?: string | null
+  smtpEnabled?: boolean
+  smtpHost?: string | null
+  smtpPort?: number | null
+  smtpUser?: string | null
+  /** Omit to keep the stored password; '' clears it. Never round-tripped back from the api. */
+  smtpPassword?: string
+  smtpFrom?: string | null
+  socialLinks?: Record<string, string>
+}
+
+/** What `upsertPaymentSetting` sends. The credential shape per provider mirrors what the api's payments module reads back out. */
+export type UpsertPaymentSetting = { isEnabled: boolean } & (
+  | { provider: 'STRIPE'; credentials: { publishableKey: string; secretKey: string } }
+  | { provider: 'MERCADOPAGO'; credentials: { accessToken: string } }
+  | {
+      provider: 'ZELLE'
+      credentials: { recipientName: string; recipientEmail: string; recipientPhone: string; instructions: string }
+    }
+)
+
+/**
+ * Why a provider's credentials can't be saved yet, or null when they can.
+ *
+ * This is not cosmetic validation: `PUT /tenants/current/payment-settings`
+ * overwrites the stored credentials with whatever it receives, so saving a
+ * half-empty form is how a store loses its live Stripe keys. The required
+ * fields are the ones the api's payment flows actually read — Zelle's phone
+ * and instructions are optional there, so they are optional here too.
+ */
+export function paymentCredentialsError(payload: UpsertPaymentSetting): string | null {
+  switch (payload.provider) {
+    case 'STRIPE':
+      if (!payload.credentials.publishableKey.trim()) return 'Ingresá la clave publicable (pk_...)'
+      if (!payload.credentials.secretKey.trim()) return 'Ingresá la clave secreta (sk_...)'
+      return null
+    case 'MERCADOPAGO':
+      if (!payload.credentials.accessToken.trim()) return 'Ingresá el access token de MercadoPago'
+      return null
+    case 'ZELLE':
+      if (!payload.credentials.recipientName.trim()) return 'Ingresá el nombre del destinatario'
+      if (!payload.credentials.recipientEmail.trim()) return 'Ingresá el correo o teléfono de Zelle'
+      return null
+  }
+}
+
+/**
+ * Folds a `PATCH /tenants/current` (or `GET /tenants/current`) response into
+ * the tenant already held in the session.
+ *
+ * Both of those responses come from `TenantsService.findCurrent`, which does
+ * **not** add `myRole` — only `findMine` (`GET /tenants/me`) does. Replacing
+ * the stored tenant with the response would therefore drop the role and
+ * silently demote the owner to a read-only collaborator until the next app
+ * start.
+ */
+export function mergeTenant(stored: Tenant | null, fresh: Tenant): Tenant {
+  return { ...fresh, myRole: fresh.myRole ?? stored?.myRole }
 }
 
 export type StaffApi = ReturnType<typeof createStaffApi>
