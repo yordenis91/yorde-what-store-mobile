@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, Image, Pressable, RefreshControl, ScrollView, Switch, View } from 'react-native'
+import { Alert, Image, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams } from 'expo-router'
-import { Badge, Button, Card, EmptyState, Input, Screen, Spinner, Text, useTheme } from '@yws/ui'
+import { Badge, Button, Card, EmptyState, Input, Screen, Spinner, Text, ToggleRow, useTheme } from '@yws/ui'
 import { extractErrorMessage, formatMoney, useStaffAuthStore, type Product, type ProductQuickEdit } from '@yws/shared'
 import {
   useAddProductImage,
@@ -17,20 +17,6 @@ import { mediaUrl } from '../../../src/lib/api'
 function parseAmount(value: string): number | null {
   const n = Number(value.replace(',', '.').trim())
   return value.trim() !== '' && Number.isFinite(n) && n >= 0 ? n : null
-}
-
-function ToggleRow({ label, hint, value, onChange }: { label: string; hint: string; value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <View style={{ flex: 1 }}>
-        <Text weight="semibold">{label}</Text>
-        <Text color="muted" variant="caption">
-          {hint}
-        </Text>
-      </View>
-      <Switch value={value} onValueChange={onChange} />
-    </View>
-  )
 }
 
 /** Price, stock and visibility — what a seller adjusts from the phone. Full editing (variants, categories, taxes) stays on the web. */

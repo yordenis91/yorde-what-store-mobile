@@ -45,15 +45,66 @@ export interface Tenant {
   locale: string
   logoUrl: string | null
   bannerUrl: string | null
+  /** Printed on the invoice PDF; falls back to `logoUrl` when null. */
+  invoiceLogoUrl: string | null
   theme: string
   tracksInventory: boolean
   whatsappEnabled: boolean
   whatsappNumber: string | null
+  telegramEnabled: boolean
+  telegramBotToken: string | null
+  telegramChatId: string | null
+  /** Placeholders: {store_name} {order_no} {item_variable} {sub_total} {discount_amount} {shipping_amount} {item_tax} {item_total}. Never null — the api column defaults to "". */
+  orderMessageTemplate: string
+  termsOfSaleContent: string | null
+  shippingPolicyContent: string | null
+  returnPolicyContent: string | null
+  privacyPolicyContent: string | null
+  smtpEnabled: boolean
+  smtpHost: string | null
+  smtpPort: number | null
+  smtpUser: string | null
+  smtpFrom: string | null
+  /**
+   * Whether a password is stored, not the password: the api replaces
+   * `smtpPassword` with this flag on every read (`maskSmtpPassword`), so the
+   * encrypted value never leaves the server.
+   */
+  smtpPasswordSet: boolean
   socialLinks: Record<string, string>
   isActive: boolean
   status: TenantStatus
   createdAt: string
+  /**
+   * The current user's role in this tenant. Only `GET /tenants/me` adds it
+   * (`TenantsService.findMine`); `GET /tenants/current` and the `PATCH`
+   * response don't, so merge rather than replace when refreshing a stored
+   * tenant — see `mergeTenant`.
+   */
   myRole?: TenantMemberRole
+}
+
+/** Payment gateways/`TenantPaymentSetting.provider` — a subset of `FulfillmentMethod`. */
+export type PaymentProvider = 'STRIPE' | 'MERCADOPAGO' | 'ZELLE'
+
+/**
+ * `GET /tenants/current/payment-settings` — deliberately without
+ * `credentials`: the api strips the encrypted blob before returning it, so
+ * the app can show which providers are on but never read back a key.
+ */
+export interface PaymentSetting {
+  id: string
+  provider: PaymentProvider
+  isEnabled: boolean
+}
+
+/** `GET /plans/current/entitlements` — the effective plan limits, so the app can say which channels are locked before the api refuses one. */
+export interface PlanEntitlements {
+  planId: string | null
+  planName: string | null
+  maxStores: number
+  maxProducts: number
+  fulfillmentMethods: FulfillmentMethod[]
 }
 
 /** Public projection of a tenant — served to unauthenticated storefront requests. */

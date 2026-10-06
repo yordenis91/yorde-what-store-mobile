@@ -49,3 +49,34 @@ export const TENANT_ROLE_LABEL: Record<TenantMemberRole, string> = {
 export function orderStatusLabel(status: string): string {
   return ORDER_STATUS_LABEL[status as OrderStatus] ?? status
 }
+
+/**
+ * Social networks a store can link to, in the order the storefront header and
+ * the settings form render them. Mirrors the web admin's `config/social.ts`
+ * (minus its icon components, which are web-only) — `Tenant.socialLinks` is a
+ * free-form JSON object, so a key that isn't here is simply not editable from
+ * the app and is left untouched on save.
+ */
+export const SOCIAL_NETWORKS = [
+  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/tutienda' },
+  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/tutienda' },
+  { key: 'whatsapp', label: 'WhatsApp', placeholder: 'https://wa.me/15551234567' },
+  { key: 'tiktok', label: 'TikTok', placeholder: 'https://tiktok.com/@tutienda' },
+  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@tutienda' },
+  { key: 'x', label: 'X', placeholder: 'https://x.com/tutienda' },
+  { key: 'website', label: 'Sitio web', placeholder: 'https://tutienda.com' },
+] as const
+
+export type SocialNetworkKey = (typeof SOCIAL_NETWORKS)[number]['key']
+
+/** Storefront theme names, as the web settings page labels them. */
+export const STOREFRONT_THEME_LABEL: Record<string, string> = {
+  default: 'Azul',
+  emerald: 'Esmeralda',
+  teal: 'Turquesa',
+  violet: 'Violeta',
+  rose: 'Rosa',
+  orange: 'Naranja',
+  amber: 'Ámbar',
+  slate: 'Pizarra',
+}
