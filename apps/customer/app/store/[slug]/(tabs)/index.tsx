@@ -37,11 +37,16 @@ export default function CatalogScreen() {
             return (
               <Pressable style={{ flex: 1 }} onPress={() => router.push(`/store/${slug}/product/${item.id}`)}>
                 <Card style={{ padding: 0, overflow: 'hidden' }}>
-                  {cover ? (
-                    <Image source={{ uri: cover.url }} style={{ width: '100%', height: 120 }} resizeMode="cover" />
-                  ) : (
-                    <View style={{ width: '100%', height: 120, backgroundColor: '#eee' }} />
-                  )}
+                  <View style={{ width: '100%', aspectRatio: 1, backgroundColor: '#fff' }}>
+                    {cover ? (
+                      <Image
+                        source={{ uri: cover.url }}
+                        accessibilityLabel={item.name}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    ) : null}
+                  </View>
                   <View style={{ padding: 8, gap: 2 }}>
                     <Text weight="semibold" numberOfLines={1}>
                       {item.name}

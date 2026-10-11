@@ -37,7 +37,16 @@ export default function ProductDetailScreen() {
 
   return (
     <Screen scroll>
-      {cover ? <Image source={{ uri: cover.url }} style={{ width: '100%', height: 240, borderRadius: 12 }} resizeMode="cover" /> : null}
+      {cover ? (
+        <View style={{ width: '100%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden', backgroundColor: '#fff' }}>
+          <Image
+            source={{ uri: cover.url }}
+            accessibilityLabel={product.name}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+        </View>
+      ) : null}
       <View style={{ marginTop: 16, gap: 8 }}>
         <Text variant="title">{product.name}</Text>
         <Text variant="subtitle">{formatMoney(product.price, tenant)}</Text>
