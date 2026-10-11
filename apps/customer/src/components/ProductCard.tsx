@@ -82,13 +82,13 @@ export function ProductCard({
           ) : null}
 
           {isNew ? (
-            <View style={{ position: 'absolute', top: 6, left: 6 }}>
+            <View style={{ position: 'absolute', top: theme.spacing.xs, left: theme.spacing.xs }}>
               <Badge label="Nuevo" tone="info" />
             </View>
           ) : null}
 
           {canQuickAdd ? (
-            <Animated.View style={{ position: 'absolute', bottom: 6, right: 6, transform: [{ scale }] }}>
+            <Animated.View style={{ position: 'absolute', bottom: theme.spacing.xs, right: theme.spacing.xs, transform: [{ scale }] }}>
               <Pressable
                 onPress={onAdd}
                 accessibilityRole="button"
@@ -114,7 +114,7 @@ export function ProductCard({
           ) : null}
         </View>
 
-        <View style={{ padding: 8, gap: 2 }}>
+        <View style={{ padding: theme.spacing.sm, gap: theme.spacing.xs / 2 }}>
           <Text variant="caption" weight="medium" numberOfLines={2} style={{ minHeight: 32 }}>
             {product.name}
           </Text>

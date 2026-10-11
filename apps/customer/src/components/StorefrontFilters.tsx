@@ -16,9 +16,12 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       style={{
         paddingVertical: 6,
-        paddingHorizontal: 12,
+        paddingHorizontal: theme.spacing.md,
         borderRadius: theme.radius.full,
         borderWidth: 1,
         borderColor: active ? theme.colors.brand600 : theme.colors.border,
@@ -58,13 +61,17 @@ export function StorefrontFilters({
 }) {
   const theme = useTheme()
   return (
-    <View style={{ backgroundColor: theme.colors.background, paddingTop: 10, paddingBottom: 8, gap: 8 }}>
-      <View style={{ paddingHorizontal: 16 }}>
-        <Input placeholder="Buscar productos" value={search} onChangeText={onSearchChange} />
+    <View style={{ backgroundColor: theme.colors.background, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.sm, gap: theme.spacing.sm }}>
+      <View style={{ paddingHorizontal: theme.spacing.lg }}>
+        <Input placeholder="Buscar productos" value={search} onChangeText={onSearchChange} accessibilityLabel="Buscar productos" />
       </View>
 
       {categories.length > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: theme.spacing.sm, paddingHorizontal: theme.spacing.lg }}
+        >
           <Chip label="Todas" active={categoryId === undefined} onPress={() => onSelectCategory(undefined)} />
           {categories.map((c) => (
             <Chip key={c.id} label={c.name} active={categoryId === c.id} onPress={() => onSelectCategory(c.id)} />
@@ -72,7 +79,11 @@ export function StorefrontFilters({
         </ScrollView>
       ) : null}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: theme.spacing.sm, paddingHorizontal: theme.spacing.lg }}
+      >
         {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => (
           <Chip key={key} label={SORT_LABELS[key]} active={sort === key} onPress={() => onSelectSort(key)} />
         ))}

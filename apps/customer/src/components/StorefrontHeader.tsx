@@ -9,22 +9,36 @@ const BANNER_MAX_HEIGHT = 140
 const COLLAPSE_DISTANCE = 100
 
 /** Social keys the storefront knows an icon for — mirrors `yorde-what-store-client/src/config/social.ts`. Any other key on `tenant.socialLinks` is ignored, same as there. */
-const SOCIAL_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
-  instagram: 'logo-instagram',
-  whatsapp: 'logo-whatsapp',
-  tiktok: 'logo-tiktok',
-  facebook: 'logo-facebook',
-  youtube: 'logo-youtube',
-  x: 'logo-twitter',
+const SOCIAL_ICONS: Record<string, { icon: React.ComponentProps<typeof Ionicons>['name']; label: string }> = {
+  instagram: { icon: 'logo-instagram', label: 'Instagram' },
+  whatsapp: { icon: 'logo-whatsapp', label: 'WhatsApp' },
+  tiktok: { icon: 'logo-tiktok', label: 'TikTok' },
+  facebook: { icon: 'logo-facebook', label: 'Facebook' },
+  youtube: { icon: 'logo-youtube', label: 'YouTube' },
+  x: { icon: 'logo-twitter', label: 'X' },
 }
 
-function SocialIcon({ url, icon, color, bg }: { url: string; icon: React.ComponentProps<typeof Ionicons>['name']; color: string; bg: string }) {
+function SocialIcon({
+  url,
+  icon,
+  label,
+  color,
+  bg,
+}: {
+  url: string
+  icon: React.ComponentProps<typeof Ionicons>['name']
+  label: string
+  color: string
+  bg: string
+}) {
+  const theme = useTheme()
   return (
     <Pressable
       onPress={() => Linking.openURL(url)}
       accessibilityRole="link"
+      accessibilityLabel={label}
       hitSlop={6}
-      style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}
+      style={{ width: 32, height: 32, borderRadius: theme.radius.full, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}
     >
       <Ionicons name={icon} size={16} color={color} />
     </Pressable>
@@ -61,20 +75,29 @@ export function StorefrontHeader({ tenant, scrollY, slug }: { tenant: PublicTena
   return (
     <View>
       {bannerUrl ? (
-        <Animated.View style={{ height: bannerHeight, opacity: bannerOpacity, overflow: 'hidden' }}>
+        <Animated.View
+          style={{ height: bannerHeight, opacity: bannerOpacity, overflow: 'hidden' }}
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+        >
           <Image source={{ uri: bannerUrl }} style={{ width: '100%', height: BANNER_MAX_HEIGHT }} resizeMode="cover" />
         </Animated.View>
       ) : null}
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg, gap: theme.spacing.md }}>
         {logoUrl ? (
-          <Image source={{ uri: logoUrl }} style={{ width: 48, height: 48, borderRadius: 12 }} />
+          <Image
+            source={{ uri: logoUrl }}
+            accessibilityLabel={`Logo de ${tenant.name}`}
+            style={{ width: 48, height: 48, borderRadius: theme.radius.md }}
+          />
         ) : (
           <View
+            accessibilityLabel={`Logo de ${tenant.name}`}
             style={{
               width: 48,
               height: 48,
-              borderRadius: 12,
+              borderRadius: theme.radius.md,
               backgroundColor: theme.colors.brand600,
               alignItems: 'center',
               justifyContent: 'center',
@@ -102,16 +125,23 @@ export function StorefrontHeader({ tenant, scrollY, slug }: { tenant: PublicTena
           accessibilityRole="button"
           accessibilityLabel="Compartir tienda"
           hitSlop={8}
-          style={{ padding: 6 }}
+          style={{ padding: theme.spacing.sm }}
         >
           <Ionicons name="share-social-outline" size={22} color={theme.colors.textMuted} />
         </Pressable>
       </View>
 
       {socialEntries.length > 0 ? (
-        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 12 }}>
+        <View style={{ flexDirection: 'row', gap: theme.spacing.sm, paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md }}>
           {socialEntries.map(([key, url]) => (
-            <SocialIcon key={key} url={url} icon={SOCIAL_ICONS[key]} color={theme.colors.brand600} bg={theme.colors.brand50} />
+            <SocialIcon
+              key={key}
+              url={url}
+              icon={SOCIAL_ICONS[key].icon}
+              label={SOCIAL_ICONS[key].label}
+              color={theme.colors.brand600}
+              bg={theme.colors.brand50}
+            />
           ))}
         </View>
       ) : null}

@@ -1,15 +1,17 @@
 import React, { useRef, useState } from 'react'
 import { Animated, FlatList, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { EmptyState, Screen, Spinner } from '@yws/ui'
+import { EmptyState, Screen, Spinner, useTheme } from '@yws/ui'
 import { useStorefrontCategories, useStorefrontProducts, useTenant } from '../../../../src/hooks/queries'
 import { ProductCard } from '../../../../src/components/ProductCard'
+import { ProductGridSkeleton } from '../../../../src/components/ProductGridSkeleton'
 import { StorefrontHeader } from '../../../../src/components/StorefrontHeader'
 import { TrustStrip } from '../../../../src/components/TrustStrip'
 import { StorefrontFilters, type SortOption } from '../../../../src/components/StorefrontFilters'
 
 export default function CatalogScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
+  const theme = useTheme()
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined)
   const [sort, setSort] = useState<SortOption>('newest')
@@ -18,6 +20,12 @@ export default function CatalogScreen() {
   const { data: tenant } = useTenant(slug)
   const { data: categories } = useStorefrontCategories(slug)
   const { data, isLoading } = useStorefrontProducts(slug, { search: search || undefined, categoryId, sort })
+
+  const isFiltered = search.trim().length > 0 || categoryId !== undefined
+  function clearFilters() {
+    setSearch('')
+    setCategoryId(undefined)
+  }
 
   if (!tenant) return <Spinner fullScreen />
 
@@ -43,18 +51,29 @@ export default function CatalogScreen() {
           onSelectSort={setSort}
         />
 
-        <View style={{ padding: 16, paddingTop: 12 }}>
+        <View style={{ padding: theme.spacing.lg, paddingTop: theme.spacing.md }}>
           {isLoading ? (
-            <Spinner />
+            <ProductGridSkeleton />
           ) : (
             <FlatList
               data={data?.items ?? []}
               keyExtractor={(p) => p.id}
               numColumns={2}
               scrollEnabled={false}
-              columnWrapperStyle={{ gap: 12 }}
-              contentContainerStyle={{ gap: 12 }}
-              ListEmptyComponent={<EmptyState title="Todavía no hay productos" />}
+              columnWrapperStyle={{ gap: theme.spacing.md }}
+              contentContainerStyle={{ gap: theme.spacing.md }}
+              ListEmptyComponent={
+                isFiltered ? (
+                  <EmptyState
+                    title="Sin resultados"
+                    description="No encontramos productos con esos filtros."
+                    actionLabel="Limpiar filtros"
+                    onAction={clearFilters}
+                  />
+                ) : (
+                  <EmptyState title="Todavía no hay productos" description="Esta tienda todavía no publicó productos." />
+                )
+              }
               renderItem={({ item }) => (
                 <ProductCard product={item} tenant={tenant} onPress={() => router.push(`/store/${slug}/product/${item.id}`)} />
               )}
