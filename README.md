@@ -245,7 +245,42 @@ It mirrors the web storefront. These are the parts that need context:
   (api clients, refresh/session handling, stores, utils). They go through a
   fake axios adapter (`src/test-utils/fake-adapter.ts`) instead of the
   network. Both apps have `jest-expo` wired up but no screen tests yet, and
-  there's no E2E suite.
+  there's no E2E suite. CI runs the suite, so the gap is what the suite
+  doesn't cover, not whether it runs — see below.
+
+## CI
+
+`.github/workflows/ci.yml` runs three gates on **every push to any branch**,
+plus fork PRs and manual dispatch:
+
+```
+pnpm install --frozen-lockfile
+pnpm typecheck     # tsc --noEmit across all five workspace packages
+pnpm lint          # eslint on both apps
+pnpm test          # packages/shared's unit suite
+```
+
+Why every branch and not just `main` and open PRs: a sibling repo had a broken
+Docker build sit on a feature branch for two commits, because its workflow only
+triggered on `main` and `pull_request` and the branch had no PR open yet — CI
+never ran once during that whole milestone, and the progress notes kept saying
+the environment check was green. `pull_request` is kept here only for forks
+(the `if` on the job), so a push to a branch of this repo produces one run, not
+two.
+
+pnpm's version is not pinned in the workflow: `pnpm/action-setup` reads
+`packageManager` from `package.json`, so CI and the lockfile can't disagree.
+
+What CI still does **not** cover, in the order worth fixing:
+
+- **Nothing opens a screen.** There are no screen tests (see above), so a
+  render crash, a broken navigation route or a role-gated form that shows the
+  wrong state all pass CI. Until those exist, a change to a screen needs a
+  device or a simulator before it's done.
+- **No build step.** `pnpm build` (`expo export` per app) is not run: it
+  bundles both apps and is an order of magnitude slower than the three gates
+  above. A change that typechecks but breaks the bundler is not caught.
+- **No EAS build, no publishing.** Those stay manual.
 
 ## Design tokens & theming
 

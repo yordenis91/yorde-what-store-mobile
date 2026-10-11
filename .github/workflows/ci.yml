@@ -1,0 +1,48 @@
+name: ci
+
+# Runs on every push to any branch, not just main and not just branches with an
+# open PR. That is deliberate: a sibling repo had a broken Docker build sit on a
+# feature branch for two commits because its workflow only triggered on `main`
+# and `pull_request`, and the branch had no PR open yet — so CI never ran once
+# during the whole milestone.
+#
+# `pull_request` is kept only for forks: for a branch in this repo the push
+# event already covers it, and running both would double every run. The job's
+# `if` below is what enforces that split.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same ref makes the previous run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Types, lint and tests
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No version pinned here on purpose: the action reads `packageManager`
+      # from package.json (pnpm@10.33.0), so the lockfile and CI can never
+      # disagree about which pnpm wrote it.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Fails instead of resolving a new tree when the lockfile is out of date.
+      - run: pnpm install --frozen-lockfile
+
+      # Each one is its own step so the log says which gate failed without
+      # reading it. turbo fans them out across the five workspace packages.
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
