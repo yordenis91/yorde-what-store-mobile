@@ -32,6 +32,15 @@ export function useStorefrontProducts(
   })
 }
 
+export function useStorefrontCategories(slug: string) {
+  return useQuery({
+    queryKey: ['storefront-categories', slug],
+    queryFn: () => customerApi.categories.list(),
+    enabled: !!slug,
+    staleTime: 5 * 60_000,
+  })
+}
+
 export function useStorefrontProduct(slug: string, id: string) {
   return useQuery({
     queryKey: ['storefront-products', slug, id],
@@ -84,15 +93,6 @@ export function useStorefrontShippings(slug: string) {
   return useQuery({
     queryKey: ['storefront-shipping', slug],
     queryFn: () => customerApi.shipping.list(),
-    enabled: !!slug,
-    staleTime: 5 * 60_000,
-  })
-}
-
-export function useStorefrontCategories(slug: string) {
-  return useQuery({
-    queryKey: ['storefront-categories', slug],
-    queryFn: () => customerApi.categories.list(),
     enabled: !!slug,
     staleTime: 5 * 60_000,
   })

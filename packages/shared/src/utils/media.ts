@@ -13,3 +13,13 @@ export function createMediaUrlResolver(apiBaseUrl: string): (url: string) => str
   return (url) =>
     /^[a-z][a-z0-9+.-]*:/i.test(url) || !origin ? url : `${origin}${url.startsWith('/') ? '' : '/'}${url}`
 }
+
+/**
+ * Nullable-friendly form of `createMediaUrlResolver` for one-off lookups
+ * (tenant logo/banner, a product cover that may be missing): `null` in, `null`
+ * out. An already-absolute URL (external hosting) passes through unchanged.
+ */
+export function resolveMediaUrl(url: string | null | undefined, apiUrl: string): string | null {
+  if (!url) return null
+  return createMediaUrlResolver(apiUrl)(url)
+}

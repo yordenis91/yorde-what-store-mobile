@@ -31,6 +31,10 @@ export interface User {
 export type TenantMemberRole = 'OWNER' | 'STAFF'
 export type TenantStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'TRIAL_EXPIRED'
 
+/** The storefront trust strip under the header — keyed by a fixed set the clients know how to render; an unknown key is ignored, same convention as socialLinks. */
+export type TrustBadges = Record<string, { enabled: boolean; text: string }>
+export type TrustBadgeKey = 'shipping' | 'payment' | 'delivery'
+
 export interface Tenant {
   id: string
   ownerId: string
@@ -72,6 +76,7 @@ export interface Tenant {
    */
   smtpPasswordSet: boolean
   socialLinks: Record<string, string>
+  trustBadges: TrustBadges
   isActive: boolean
   status: TenantStatus
   createdAt: string
@@ -123,6 +128,7 @@ export interface PublicTenant {
   currencySymbolPosition: string
   locale: string
   socialLinks: Record<string, string>
+  trustBadges: TrustBadges
   whatsappEnabled: boolean
   telegramEnabled: boolean
   termsOfSaleContent: string | null

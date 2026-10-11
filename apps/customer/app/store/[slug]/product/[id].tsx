@@ -72,11 +72,16 @@ export default function ProductDetailScreen() {
   return (
     <Screen scroll>
       {activeImage ? (
-        <Image
-          source={{ uri: mediaUrl(activeImage.url) }}
-          style={{ width: '100%', aspectRatio: 1, borderRadius: theme.radius.lg }}
-          resizeMode="cover"
-        />
+        <View
+          style={{ width: '100%', aspectRatio: 1, borderRadius: theme.radius.lg, overflow: 'hidden', backgroundColor: '#fff' }}
+        >
+          <Image
+            source={{ uri: mediaUrl(activeImage.url) }}
+            accessibilityLabel={product.name}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+        </View>
       ) : null}
       {product.images.length > 1 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 8 }}>
