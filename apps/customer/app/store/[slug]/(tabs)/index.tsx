@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
-import { FlatList, Image, Pressable, View } from 'react-native'
+import { FlatList } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { Card, EmptyState, Input, Screen, Spinner, Text } from '@yws/ui'
-import { formatMoney } from '@yws/shared'
+import { EmptyState, Input, Screen, Spinner, Text } from '@yws/ui'
 import { useStorefrontProducts, useTenant } from '../../../../src/hooks/queries'
+import { ProductCard } from '../../../../src/components/ProductCard'
 
 export default function CatalogScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
@@ -32,31 +32,9 @@ export default function CatalogScreen() {
           columnWrapperStyle={{ gap: 12 }}
           contentContainerStyle={{ gap: 12 }}
           ListEmptyComponent={<EmptyState title="Todavía no hay productos" />}
-          renderItem={({ item }) => {
-            const cover = item.images.find((i) => i.isCover) ?? item.images[0]
-            return (
-              <Pressable style={{ flex: 1 }} onPress={() => router.push(`/store/${slug}/product/${item.id}`)}>
-                <Card style={{ padding: 0, overflow: 'hidden' }}>
-                  <View style={{ width: '100%', aspectRatio: 1, backgroundColor: '#fff' }}>
-                    {cover ? (
-                      <Image
-                        source={{ uri: cover.url }}
-                        accessibilityLabel={item.name}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
-                    ) : null}
-                  </View>
-                  <View style={{ padding: 8, gap: 2 }}>
-                    <Text weight="semibold" numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text color="muted">{formatMoney(item.price, tenant)}</Text>
-                  </View>
-                </Card>
-              </Pressable>
-            )
-          }}
+          renderItem={({ item }) => (
+            <ProductCard product={item} tenant={tenant} onPress={() => router.push(`/store/${slug}/product/${item.id}`)} />
+          )}
         />
       )}
     </Screen>
