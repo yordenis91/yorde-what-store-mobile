@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useCustomerAuthStore } from '../stores/customer-auth.store'
 import { createHttpClient, isRefreshRejected, unwrap } from './http-factory'
 import { getDeviceId } from '../utils/device-id'
-import type { ApiEnvelope, Customer, CustomerOrderSummary, Order, PaginatedResult, Product, PublicTenant } from '../types/api'
+import type { ApiEnvelope, Customer, CustomerOrderSummary, Order, PaginatedResult, Product, ProductCategory, PublicTenant } from '../types/api'
 
 export interface CustomerRegisterPayload {
   name: string
@@ -165,9 +165,17 @@ export function createCustomerApi(baseURL: string) {
       order: (id: string) => unwrap<CustomerOrderSummary>(client.get(`/storefront/customers/orders/${id}`)),
     },
     products: {
-      list: (params?: { page?: number; limit?: number; categoryId?: string; search?: string }) =>
-        unwrap<PaginatedResult<Product>>(client.get('/storefront/products', { params })),
+      list: (params?: {
+        page?: number
+        limit?: number
+        categoryId?: string
+        search?: string
+        sort?: 'price_asc' | 'price_desc' | 'newest'
+      }) => unwrap<PaginatedResult<Product>>(client.get('/storefront/products', { params })),
       get: (id: string) => unwrap<Product>(client.get(`/storefront/products/${id}`)),
+    },
+    categories: {
+      list: () => unwrap<ProductCategory[]>(client.get('/storefront/categories')),
     },
     orders: {
       create: (payload: CreateOrderPayload) => unwrap<CreateOrderResult>(client.post('/storefront/orders', payload)),

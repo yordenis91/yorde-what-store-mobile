@@ -2,8 +2,9 @@ import React, { useState } from 'react'
 import { Image, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Button, EmptyState, Screen, Spinner, Text } from '@yws/ui'
-import { formatMoney, useCartStore } from '@yws/shared'
+import { formatMoney, resolveMediaUrl, useCartStore } from '@yws/shared'
 import { useStorefrontProduct, useTenant } from '../../../../src/hooks/queries'
+import { API_URL } from '../../../../src/lib/api'
 
 export default function ProductDetailScreen() {
   const { slug, id } = useLocalSearchParams<{ slug: string; id: string }>()
@@ -17,6 +18,7 @@ export default function ProductDetailScreen() {
   if (!product) return <EmptyState title="Producto no encontrado" />
 
   const cover = product.images.find((i) => i.isCover) ?? product.images[0]
+  const coverUrl = resolveMediaUrl(cover?.url, API_URL)
   // Stock only limits the cart when the store tracks inventory — mirrors the web client.
   const stock = tenant?.tracksInventory ? product.quantity : undefined
   const soldOut = stock !== undefined && stock <= 0
@@ -29,7 +31,7 @@ export default function ProductDetailScreen() {
       name: product.name,
       unitPrice: Number.parseFloat(product.price),
       quantity: 1,
-      imageUrl: cover?.url,
+      imageUrl: coverUrl ?? undefined,
       maxQuantity: stock,
     })
     setAdded(true)
@@ -37,10 +39,10 @@ export default function ProductDetailScreen() {
 
   return (
     <Screen scroll>
-      {cover ? (
+      {coverUrl ? (
         <View style={{ width: '100%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden', backgroundColor: '#fff' }}>
           <Image
-            source={{ uri: cover.url }}
+            source={{ uri: coverUrl }}
             accessibilityLabel={product.name}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"

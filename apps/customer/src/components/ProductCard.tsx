@@ -2,7 +2,8 @@ import React, { useRef, useState } from 'react'
 import { Animated, Image, Platform, Pressable, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Badge, Text, useTheme } from '@yws/ui'
-import { formatMoney, useCartStore, type Product, type PublicTenant } from '@yws/shared'
+import { formatMoney, resolveMediaUrl, useCartStore, type Product, type PublicTenant } from '@yws/shared'
+import { API_URL } from '../lib/api'
 
 const NEW_WINDOW_DAYS = 7
 
@@ -26,6 +27,7 @@ export function ProductCard({
   const scale = useRef(new Animated.Value(1)).current
 
   const cover = product.images.find((i) => i.isCover) ?? product.images[0]
+  const coverUrl = resolveMediaUrl(cover?.url, API_URL)
   const stock = tenant?.tracksInventory ? product.quantity : undefined
   const soldOut = stock !== undefined && stock <= 0
   const isNew = Date.now() - new Date(product.createdAt).getTime() < NEW_WINDOW_DAYS * 24 * 60 * 60 * 1000
@@ -37,7 +39,7 @@ export function ProductCard({
       name: product.name,
       unitPrice: Number.parseFloat(product.price),
       quantity: 1,
-      imageUrl: cover?.url,
+      imageUrl: coverUrl ?? undefined,
       maxQuantity: stock,
     })
     setJustAdded(true)
@@ -70,9 +72,9 @@ export function ProductCard({
         }}
       >
         <View style={{ width: '100%', aspectRatio: 1, backgroundColor: '#fff' }}>
-          {cover ? (
+          {coverUrl ? (
             <Image
-              source={{ uri: cover.url }}
+              source={{ uri: coverUrl }}
               accessibilityLabel={product.name}
               style={{ width: '100%', height: '100%' }}
               resizeMode="cover"

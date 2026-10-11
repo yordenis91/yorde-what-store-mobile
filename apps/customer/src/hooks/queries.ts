@@ -12,11 +12,24 @@ export function useTenant(slug: string) {
   })
 }
 
-export function useStorefrontProducts(slug: string, search?: string) {
+export function useStorefrontProducts(
+  slug: string,
+  options?: { search?: string; categoryId?: string; sort?: 'price_asc' | 'price_desc' | 'newest' },
+) {
+  const { search, categoryId, sort } = options ?? {}
   return useQuery({
-    queryKey: ['storefront-products', slug, search],
-    queryFn: () => customerApi.products.list({ search, limit: 30 }),
+    queryKey: ['storefront-products', slug, search, categoryId, sort],
+    queryFn: () => customerApi.products.list({ search, categoryId, sort, limit: 30 }),
     enabled: !!slug,
+  })
+}
+
+export function useStorefrontCategories(slug: string) {
+  return useQuery({
+    queryKey: ['storefront-categories', slug],
+    queryFn: () => customerApi.categories.list(),
+    enabled: !!slug,
+    staleTime: 5 * 60_000,
   })
 }
 
