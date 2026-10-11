@@ -2,21 +2,31 @@ import React from 'react'
 import { View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Text, useTheme } from '@yws/ui'
+import type { TrustBadgeKey, TrustBadges } from '@yws/shared'
 
-/**
- * Fixed copy for now — the tenant model has no field yet for a store to turn
- * these on/off or edit the wording, so this always shows the same three
- * items rather than pretending to be per-tenant configurable. Needs a
- * backend addition (e.g. `tenant.trustBadges`) before it can really be that.
- */
-const ITEMS: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string }[] = [
-  { icon: 'bicycle-outline', label: 'Envío gratis' },
-  { icon: 'shield-checkmark-outline', label: 'Pago seguro' },
-  { icon: 'flash-outline', label: 'Entrega rápida' },
-]
+const ICONS: Record<TrustBadgeKey, React.ComponentProps<typeof Ionicons>['name']> = {
+  shipping: 'bicycle-outline',
+  payment: 'shield-checkmark-outline',
+  delivery: 'flash-outline',
+}
 
-export function TrustStrip() {
+/** Matches the api's default `trust_badges` column — what every storefront showed before this was configurable, used when a tenant hasn't set the field at all (e.g. a stale cached PublicTenant). */
+const DEFAULTS: TrustBadges = {
+  shipping: { enabled: true, text: 'Envío gratis' },
+  payment: { enabled: true, text: 'Pago seguro' },
+  delivery: { enabled: true, text: 'Entrega rápida' },
+}
+
+const ORDER: TrustBadgeKey[] = ['shipping', 'payment', 'delivery']
+
+/** Per-tenant: each badge can be turned off or have its text edited from the store's settings. */
+export function TrustStrip({ trustBadges }: { trustBadges: TrustBadges | null | undefined }) {
   const theme = useTheme()
+  const badges = trustBadges ?? DEFAULTS
+  const visible = ORDER.map((key) => ({ key, ...badges[key] })).filter((b) => b.enabled && b.text)
+
+  if (visible.length === 0) return null
+
   return (
     <View
       style={{
@@ -27,11 +37,11 @@ export function TrustStrip() {
         backgroundColor: theme.colors.brand50,
       }}
     >
-      {ITEMS.map((item) => (
-        <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Ionicons name={item.icon} size={14} color={theme.colors.brand600} />
+      {visible.map((badge) => (
+        <View key={badge.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Ionicons name={ICONS[badge.key]} size={14} color={theme.colors.brand600} />
           <Text variant="caption" weight="medium" style={{ color: theme.colors.brand700 }}>
-            {item.label}
+            {badge.text}
           </Text>
         </View>
       ))}

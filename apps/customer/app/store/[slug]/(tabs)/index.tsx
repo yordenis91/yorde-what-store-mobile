@@ -30,7 +30,7 @@ export default function CatalogScreen() {
       >
         <View>
           <StorefrontHeader tenant={tenant} scrollY={scrollY} slug={slug} />
-          <TrustStrip />
+          <TrustStrip trustBadges={tenant.trustBadges} />
         </View>
 
         <StorefrontFilters
