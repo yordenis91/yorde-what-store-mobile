@@ -12,6 +12,7 @@ const SECTIONS = [
   { href: '/store-settings/general', title: 'General', hint: 'Nombre, lema, moneda e inventario' },
   { href: '/store-settings/appearance', title: 'Apariencia', hint: 'Logo, banner, color y logo de factura' },
   { href: '/store-settings/social', title: 'Redes sociales', hint: 'Los enlaces que ven tus clientes en la cabecera' },
+  { href: '/store-settings/trust', title: 'Franja de confianza', hint: 'Los mensajes bajo la cabecera de tu tienda' },
   { href: '/store-settings/channels', title: 'Canales de venta', hint: 'WhatsApp, Telegram y el mensaje del pedido' },
   { href: '/store-settings/payments', title: 'Métodos de pago', hint: 'Zelle, Stripe y MercadoPago' },
   { href: '/store-settings/policies', title: 'Políticas de la tienda', hint: 'Venta, envío, devoluciones y privacidad' },
