@@ -19,6 +19,7 @@ import type {
   ProductImage,
   PublicTenant,
   Tenant,
+  TrustBadges,
   User,
 } from '../types/api'
 
@@ -340,6 +341,7 @@ export interface TenantSettingsUpdate {
   smtpPassword?: string
   smtpFrom?: string | null
   socialLinks?: Record<string, string>
+  trustBadges?: TrustBadges
 }
 
 /** What `upsertPaymentSetting` sends. The credential shape per provider mirrors what the api's payments module reads back out. */

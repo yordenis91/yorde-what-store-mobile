@@ -28,6 +28,7 @@ export default function StoreSettingsLayout() {
       <Stack.Screen name="general" options={{ title: 'General' }} />
       <Stack.Screen name="appearance" options={{ title: 'Apariencia' }} />
       <Stack.Screen name="social" options={{ title: 'Redes sociales' }} />
+      <Stack.Screen name="trust" options={{ title: 'Franja de confianza' }} />
       <Stack.Screen name="channels" options={{ title: 'Canales de venta' }} />
       <Stack.Screen name="payments" options={{ title: 'Métodos de pago' }} />
       <Stack.Screen name="policies" options={{ title: 'Políticas' }} />

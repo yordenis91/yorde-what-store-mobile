@@ -2,7 +2,7 @@ import React from 'react'
 import { View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Text, useTheme } from '@yws/ui'
-import type { TrustBadgeKey, TrustBadges } from '@yws/shared'
+import { DEFAULT_TRUST_BADGES, TRUST_BADGE_KEYS, type TrustBadgeKey, type TrustBadges } from '@yws/shared'
 
 const ICONS: Record<TrustBadgeKey, React.ComponentProps<typeof Ionicons>['name']> = {
   shipping: 'bicycle-outline',
@@ -10,20 +10,11 @@ const ICONS: Record<TrustBadgeKey, React.ComponentProps<typeof Ionicons>['name']
   delivery: 'flash-outline',
 }
 
-/** Matches the api's default `trust_badges` column — what every storefront showed before this was configurable, used when a tenant hasn't set the field at all (e.g. a stale cached PublicTenant). */
-const DEFAULTS: TrustBadges = {
-  shipping: { enabled: true, text: 'Envío gratis' },
-  payment: { enabled: true, text: 'Pago seguro' },
-  delivery: { enabled: true, text: 'Entrega rápida' },
-}
-
-const ORDER: TrustBadgeKey[] = ['shipping', 'payment', 'delivery']
-
 /** Per-tenant: each badge can be turned off or have its text edited from the store's settings. */
 export function TrustStrip({ trustBadges }: { trustBadges: TrustBadges | null | undefined }) {
   const theme = useTheme()
-  const badges = trustBadges ?? DEFAULTS
-  const visible = ORDER.map((key) => ({ key, ...badges[key] })).filter((b) => b.enabled && b.text)
+  const badges = trustBadges ?? DEFAULT_TRUST_BADGES
+  const visible = TRUST_BADGE_KEYS.map((key) => ({ key, ...badges[key] })).filter((b) => b.enabled && b.text)
 
   if (visible.length === 0) return null
 
