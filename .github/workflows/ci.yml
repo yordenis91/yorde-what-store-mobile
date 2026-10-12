@@ -46,3 +46,23 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+
+  # A change can typecheck and lint clean and still break the bundler (a bad
+  # import path, an asset Metro cannot resolve, a native module with no web
+  # fallback). `expo export` is the cheapest thing that runs Metro for real.
+  # Its own job so it runs in parallel with the gates above and a bundler
+  # failure is not mixed up with a type error.
+  build:
+    name: Expo export
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # turbo builds staff and customer, and the shared packages they depend on.
+      - run: pnpm build
