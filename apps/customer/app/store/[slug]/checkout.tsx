@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Linking, Pressable, Switch, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { Button, Card, EmptyState, Input, Screen, Text, useTheme } from '@yws/ui'
+import { Button, Card, EmptyState, Input, Screen, Spinner, Text, useTheme } from '@yws/ui'
 import {
   cleanShippingAddress,
   deliveryAddressError,
@@ -119,7 +119,7 @@ function ZelleInstructions({ info }: { info: NonNullable<PublicTenant['zellePaym
 
 export default function CheckoutScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
-  const { data: tenant } = useTenant(slug)
+  const { data: tenant, isError: tenantFailed, refetch: refetchTenant } = useTenant(slug)
   const items = useCartStore((s) => s.items)
   const couponCode = useCartStore((s) => s.couponCode)
   const setCoupon = useCartStore((s) => s.setCoupon)
@@ -415,7 +415,17 @@ export default function CheckoutScreen() {
 
       <Card style={{ gap: 12, marginBottom: 12 }}>
         <Text weight="semibold">Método de pago</Text>
-        {methods.length === 0 ? (
+        {!tenant ? (
+          // Not loaded is not the same as "accepts nothing": say which one it is.
+          tenantFailed ? (
+            <View style={{ gap: 8 }}>
+              <Text color="danger">No pudimos cargar los métodos de pago. Revisá tu conexión.</Text>
+              <Button title="Reintentar" variant="secondary" fullWidth={false} onPress={() => void refetchTenant()} />
+            </View>
+          ) : (
+            <Spinner />
+          )
+        ) : methods.length === 0 ? (
           <Text color="danger">Esta tienda todavía no acepta pedidos desde la app.</Text>
         ) : (
           methods.map((m) => (

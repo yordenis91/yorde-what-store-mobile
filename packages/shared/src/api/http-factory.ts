@@ -110,6 +110,16 @@ export function httpStatusOf(error: unknown): number | undefined {
   return axios.isAxiosError(error) ? error.response?.status : undefined
 }
 
+/**
+ * Whether the request never got an answer — offline, DNS, a dropped connection
+ * or a timeout. That says nothing about the thing asked for (a store that
+ * can't be reached isn't a store that doesn't exist), so screens must not
+ * report it as "not found".
+ */
+export function isNetworkError(error: unknown): boolean {
+  return axios.isAxiosError(error) && !error.response
+}
+
 export function extractErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as { message?: string | string[] } | undefined
