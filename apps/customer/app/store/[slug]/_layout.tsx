@@ -1,9 +1,12 @@
 import React, { useEffect } from 'react'
+import { useIsRestoring } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import { EmptyState, Screen, Spinner, ThemeProvider } from '@yws/ui'
-import { useCartStore, useCustomerAuthStore, useHasHydrated } from '@yws/shared'
+import { httpStatusOf, useCartStore, useCustomerAuthStore, useHasHydrated } from '@yws/shared'
 import { useTenant } from '../../../src/hooks/queries'
 import { useVisitTracking } from '../../../src/hooks/useVisitTracking'
+import { OfflineBanner } from '../../../src/components/OfflineBanner'
+import { isLoadFailure } from '../../../src/lib/query-state'
 
 function VisitTracker() {
   useVisitTracking()
@@ -26,7 +29,10 @@ function VisitTracker() {
  */
 export default function StoreLayout() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
-  const { data: tenant, isLoading, isError } = useTenant(slug)
+  // Saved catalog data is being read back from the phone; until then the query is idle with no data.
+  const restoring = useIsRestoring()
+  const tenantQuery = useTenant(slug)
+  const { data: tenant, isLoading, error, refetch } = tenantQuery
   const cartHydrated = useHasHydrated(useCartStore)
   const authHydrated = useHasHydrated(useCustomerAuthStore)
   const cartSlug = useCartStore((s) => s.tenantSlug)
@@ -42,8 +48,22 @@ export default function StoreLayout() {
     }
   }, [hydrated, slug, setCartTenantSlug, setAuthTenantSlug])
 
-  if (isLoading || !hydrated || cartSlug !== slug || authSlug !== slug) return <Spinner fullScreen />
-  if (isError || !tenant) {
+  if (restoring || isLoading || !hydrated || cartSlug !== slug || authSlug !== slug) return <Spinner fullScreen />
+  if (!tenant) {
+    // Only an answer from the api means the store is missing. No answer (weak
+    // or dropped connection) is not "not found", and a retry may fix it.
+    if (isLoadFailure(tenantQuery) && httpStatusOf(error) === undefined) {
+      return (
+        <Screen>
+          <EmptyState
+            title="No pudimos cargar la tienda"
+            description="Revisá tu conexión e intentá de nuevo."
+            actionLabel="Reintentar"
+            onAction={() => void refetch()}
+          />
+        </Screen>
+      )
+    }
     return (
       <Screen>
         <EmptyState title="Tienda no encontrada" description={`No hay ninguna tienda activa en "${slug}".`} />
@@ -54,6 +74,7 @@ export default function StoreLayout() {
   return (
     <ThemeProvider tenantThemeName={tenant.theme}>
       <VisitTracker />
+      <OfflineBanner />
       <Stack screenOptions={{ headerShown: false }} />
     </ThemeProvider>
   )

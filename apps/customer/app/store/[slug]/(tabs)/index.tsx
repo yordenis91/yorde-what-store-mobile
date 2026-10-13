@@ -3,6 +3,7 @@ import { ActivityIndicator, Animated, FlatList, RefreshControl, View, type Nativ
 import { router, useLocalSearchParams } from 'expo-router'
 import { EmptyState, Screen, Spinner, useTheme } from '@yws/ui'
 import { useStorefrontCategories, useStorefrontProducts, useTenant } from '../../../../src/hooks/queries'
+import { isLoadFailure } from '../../../../src/lib/query-state'
 import { ProductCard } from '../../../../src/components/ProductCard'
 import { ProductGridSkeleton } from '../../../../src/components/ProductGridSkeleton'
 import { StorefrontHeader } from '../../../../src/components/StorefrontHeader'
@@ -21,7 +22,8 @@ export default function CatalogScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const scrollY = useRef(new Animated.Value(0)).current
 
-  const { data: tenant, isError: tenantFailed, refetch: refetchTenant } = useTenant(slug)
+  const tenantQuery = useTenant(slug)
+  const { data: tenant, refetch: refetchTenant } = tenantQuery
   const { data: categories } = useStorefrontCategories(slug)
   const products = useStorefrontProducts(slug, { search: search || undefined, categoryId, sort })
   const items = products.data?.pages.flatMap((page) => page.items) ?? []
@@ -51,7 +53,7 @@ export default function CatalogScreen() {
   }
 
   if (!tenant) {
-    if (tenantFailed) {
+    if (isLoadFailure(tenantQuery)) {
       return (
         <Screen>
           <EmptyState
