@@ -21,7 +21,7 @@ export default function CatalogScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const scrollY = useRef(new Animated.Value(0)).current
 
-  const { data: tenant } = useTenant(slug)
+  const { data: tenant, isError: tenantFailed, refetch: refetchTenant } = useTenant(slug)
   const { data: categories } = useStorefrontCategories(slug)
   const products = useStorefrontProducts(slug, { search: search || undefined, categoryId, sort })
   const items = products.data?.pages.flatMap((page) => page.items) ?? []
@@ -50,7 +50,21 @@ export default function CatalogScreen() {
     }
   }
 
-  if (!tenant) return <Spinner fullScreen />
+  if (!tenant) {
+    if (tenantFailed) {
+      return (
+        <Screen>
+          <EmptyState
+            title="No pudimos cargar la tienda"
+            description="Revisá tu conexión e intentá de nuevo."
+            actionLabel="Reintentar"
+            onAction={() => void refetchTenant()}
+          />
+        </Screen>
+      )
+    }
+    return <Spinner fullScreen />
+  }
 
   return (
     <Screen padded={false}>

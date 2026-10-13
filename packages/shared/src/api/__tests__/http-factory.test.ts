@@ -1,5 +1,5 @@
 import { AxiosError } from 'axios'
-import { createHttpClient, extractErrorMessage, isRefreshRejected, type HttpFactoryConfig } from '../http-factory'
+import { createHttpClient, extractErrorMessage, isNetworkError, isRefreshRejected, type HttpFactoryConfig } from '../http-factory'
 import { installFakeAdapter, ok, type FakeHandler } from '../../test-utils/fake-adapter'
 
 const ORIGIN = 'https://api.test'
@@ -144,6 +144,24 @@ describe('isRefreshRejected', () => {
   it('treats network errors and non-axios errors as transient', () => {
     expect(isRefreshRejected(new AxiosError('Network Error', AxiosError.ERR_NETWORK))).toBe(false)
     expect(isRefreshRejected(new Error('boom'))).toBe(false)
+  })
+})
+
+describe('isNetworkError', () => {
+  it('is true when the api never answered (offline, dropped connection, timeout)', () => {
+    expect(isNetworkError(new AxiosError('Network Error', AxiosError.ERR_NETWORK))).toBe(true)
+    expect(isNetworkError(new AxiosError('timeout', AxiosError.ECONNABORTED))).toBe(true)
+  })
+
+  it('is false when the api answered, even with an error status', () => {
+    const answered = (status: number) =>
+      new AxiosError('x', AxiosError.ERR_BAD_REQUEST, undefined, {}, { status } as never)
+    expect(isNetworkError(answered(404))).toBe(false)
+    expect(isNetworkError(answered(503))).toBe(false)
+  })
+
+  it('is false for errors that are not requests', () => {
+    expect(isNetworkError(new Error('boom'))).toBe(false)
   })
 })
 

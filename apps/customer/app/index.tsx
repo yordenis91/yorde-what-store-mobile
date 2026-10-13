@@ -3,7 +3,7 @@ import { View } from 'react-native'
 import Constants from 'expo-constants'
 import { Redirect, router } from 'expo-router'
 import { Button, Card, Input, Screen, Spinner, Text } from '@yws/ui'
-import { createStoreSlugSchema, extractErrorMessage, useCustomerAuthStore, useHasHydrated } from '@yws/shared'
+import { createStoreSlugSchema, extractErrorMessage, isNetworkError, useCustomerAuthStore, useHasHydrated } from '@yws/shared'
 import { customerApi } from '../src/lib/api'
 
 const rootDomain: unknown = Constants.expoConfig?.extra?.storefrontRootDomain
@@ -39,7 +39,12 @@ export default function WelcomeScreen() {
       setTenantSlug(parsed.data)
       router.replace(`/store/${parsed.data}`)
     } catch (err) {
-      setError(extractErrorMessage(err, 'No encontramos esa tienda'))
+      // No answer at all (weak or dropped connection) says nothing about the store — don't call it missing.
+      setError(
+        isNetworkError(err)
+          ? 'No pudimos conectarnos. Revisá tu conexión e intentá de nuevo.'
+          : extractErrorMessage(err, 'No encontramos esa tienda'),
+      )
     } finally {
       setLoading(false)
     }
