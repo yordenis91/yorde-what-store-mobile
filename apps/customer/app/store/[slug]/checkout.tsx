@@ -17,6 +17,7 @@ import {
 } from '@yws/shared'
 import { customerApi } from '../../../src/lib/api'
 import { getAnalyticsSessionId } from '../../../src/lib/analytics'
+import { isLoadFailure } from '../../../src/lib/query-state'
 import { useCheckoutQuote, useStorefrontShippings, useTenant } from '../../../src/hooks/queries'
 
 function SummaryRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
@@ -119,7 +120,9 @@ function ZelleInstructions({ info }: { info: NonNullable<PublicTenant['zellePaym
 
 export default function CheckoutScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
-  const { data: tenant, isError: tenantFailed, refetch: refetchTenant } = useTenant(slug)
+  const tenantQuery = useTenant(slug)
+  const { data: tenant, refetch: refetchTenant } = tenantQuery
+  const tenantFailed = isLoadFailure(tenantQuery)
   const items = useCartStore((s) => s.items)
   const couponCode = useCartStore((s) => s.couponCode)
   const setCoupon = useCartStore((s) => s.setCoupon)
