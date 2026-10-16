@@ -25,7 +25,7 @@ export function tenantFixture(overrides: Partial<Tenant> = {}): Tenant {
     whatsappEnabled: false,
     whatsappNumber: null,
     telegramEnabled: false,
-    telegramBotToken: null,
+    telegramBotTokenSet: false,
     telegramChatId: null,
     orderMessageTemplate: '',
     termsOfSaleContent: null,

@@ -51,7 +51,7 @@ export default function EmailSettingsScreen() {
       {form.canEdit ? null : <ReadOnlyNotice role={form.tenant?.myRole} />}
       <SettingsSection
         title="Envío de emails (SMTP)"
-        hint="Enviá confirmaciones de pedido, restablecimientos de contraseña e invitaciones de personal desde tu propio servidor de correo en vez del de la plataforma."
+        hint="Enviá las confirmaciones de pedido desde tu propio servidor de correo en vez del de la plataforma. Los correos de acceso (restablecer contraseña e invitaciones de personal) salen siempre por la plataforma."
       >
         {values.smtpEnabled && values.smtpPasswordSet ? <Badge label="Configurado" tone="success" /> : null}
         <ToggleRow

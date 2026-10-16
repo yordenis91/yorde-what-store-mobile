@@ -267,34 +267,24 @@ function StripeForm({ enabled }: { enabled: boolean }) {
 
 function MercadoPagoForm({ enabled }: { enabled: boolean }) {
   const saver = useProviderSave()
-  const [values, setValues] = useState({ isEnabled: enabled, accessToken: '' })
-  useEffect(() => setValues((current) => ({ ...current, isEnabled: enabled })), [enabled])
-
-  function patch(changes: Partial<typeof values>) {
-    saver.reset()
-    setValues((current) => ({ ...current, ...changes }))
-  }
+  const [isEnabled, setIsEnabled] = useState(enabled)
+  useEffect(() => setIsEnabled(enabled), [enabled])
 
   return (
     <>
       <SettingsSection
         title="MercadoPago"
-        hint="Igual que Stripe: el access token no se puede leer de vuelta y cada guardado lo reemplaza."
+        hint="Los pagos con MercadoPago se procesan con la cuenta de la plataforma, así que aquí no hay nada que configurar. Activalo para ofrecerlo en el checkout."
       >
         <EnabledBadge enabled={enabled} label="MercadoPago" />
         <PlanLockedNotice method="MERCADOPAGO" />
         <ToggleRow
           label="Habilitar MercadoPago"
-          value={values.isEnabled}
-          onChange={(isEnabled) => patch({ isEnabled })}
-        />
-        <Input
-          label="Access token"
-          placeholder="APP_USR-..."
-          autoCapitalize="none"
-          secureTextEntry
-          value={values.accessToken}
-          onChangeText={(accessToken) => patch({ accessToken })}
+          value={isEnabled}
+          onChange={(next) => {
+            saver.reset()
+            setIsEnabled(next)
+          }}
         />
       </SettingsSection>
       <SaveBar
@@ -303,13 +293,7 @@ function MercadoPagoForm({ enabled }: { enabled: boolean }) {
         error={saver.error}
         saved={saver.saved}
         title="Guardar MercadoPago"
-        onPress={() =>
-          saver.save({
-            provider: 'MERCADOPAGO',
-            isEnabled: values.isEnabled,
-            credentials: { accessToken: values.accessToken.trim() },
-          })
-        }
+        onPress={() => saver.save({ provider: 'MERCADOPAGO', isEnabled })}
       />
     </>
   )

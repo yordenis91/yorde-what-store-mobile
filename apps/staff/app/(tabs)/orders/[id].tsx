@@ -8,15 +8,18 @@ import {
   formatDate,
   formatMoney,
   FULFILLMENT_METHOD_LABEL,
+  needsOwnerToSet,
   ORDER_STATUS_LABEL,
   PAYMENT_STATUS_LABEL,
   publicOrderLink,
+  terminalStatusMessage,
   useStaffAuthStore,
   type Order,
   type OrderStatus,
 } from '@yws/shared'
 import {
   useConfirmZellePayment,
+  useIsStoreOwner,
   useOrder,
   useRejectZellePayment,
   useUpdateOrderStatus,
@@ -39,14 +42,9 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   )
 }
 
-/** Same wording as the web admin's confirmations (orders.cancelConfirm / refundConfirm / changeStatusTitle). */
-function confirmStatusChange(status: OrderStatus, onConfirm: () => void) {
-  const message =
-    status === 'CANCELLED'
-      ? 'El pedido se cancelará y se liberará su stock. No se puede deshacer.'
-      : status === 'REFUNDED'
-        ? 'El pedido se marcará como reembolsado. Si se pagó con tarjeta, el pago se reembolsa a través de la pasarela. No se puede deshacer.'
-        : undefined
+/** Same wording as the web admin's confirmations (orders.cancelConfirm / cancelPaidConfirm / refundConfirm). */
+function confirmStatusChange(status: OrderStatus, order: Order, onConfirm: () => void) {
+  const message = terminalStatusMessage(status, order)
   Alert.alert(`¿Cambiar el estado a ${ORDER_STATUS_LABEL[status]}?`, message, [
     { text: 'Volver', style: 'cancel' },
     { text: 'Cambiar', style: TERMINAL.includes(status) ? 'destructive' : 'default', onPress: onConfirm },
@@ -139,6 +137,7 @@ export default function OrderDetailScreen() {
   const tenant = useStaffAuthStore((s) => s.activeTenant)
   const order = useOrder(id)
   const updateStatus = useUpdateOrderStatus()
+  const isOwner = useIsStoreOwner()
 
   if (order.isLoading) return <Spinner fullScreen />
   if (!order.data) {
@@ -196,15 +195,21 @@ export default function OrderDetailScreen() {
                 key={s}
                 label={ORDER_STATUS_LABEL[s]}
                 selected={s === o.status}
-                disabled={updateStatus.isPending}
+                // Returning money goes through the owner's payment account: the api answers 403 to anyone else.
+                disabled={updateStatus.isPending || (!isOwner && needsOwnerToSet(s, o))}
                 onPress={() => {
                   if (s !== o.status)
-                    confirmStatusChange(s, () => updateStatus.mutate({ id: o.id, status: s }))
+                    confirmStatusChange(s, o, () => updateStatus.mutate({ id: o.id, status: s }))
                 }}
               />
             ))}
           </View>
         )}
+        {!locked && !isOwner && STATUSES.some((s) => needsOwnerToSet(s, o)) ? (
+          <Text color="muted" variant="caption">
+            Reembolsar, o cancelar un pedido ya pagado con tarjeta, solo lo puede hacer el dueño de la tienda.
+          </Text>
+        ) : null}
         {updateStatus.error ? (
           <Text color="danger">
             {extractErrorMessage(updateStatus.error, 'No pudimos cambiar el estado.')}
