@@ -289,10 +289,9 @@ describe('paymentCredentialsError', () => {
     ).toMatch(/clave secreta/)
   })
 
-  it('refuses an empty MercadoPago token', () => {
-    expect(
-      paymentCredentialsError({ provider: 'MERCADOPAGO', isEnabled: false, credentials: { accessToken: '' } }),
-    ).toMatch(/access token/)
+  it('asks MercadoPago for nothing: it is charged through the platform account, so there are no store credentials', () => {
+    expect(paymentCredentialsError({ provider: 'MERCADOPAGO', isEnabled: true })).toBeNull()
+    expect(paymentCredentialsError({ provider: 'MERCADOPAGO', isEnabled: false })).toBeNull()
   })
 
   it('requires a Zelle recipient but not the optional phone or instructions', () => {

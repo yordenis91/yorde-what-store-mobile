@@ -326,7 +326,8 @@ export interface TenantSettingsUpdate {
   whatsappEnabled?: boolean
   whatsappNumber?: string | null
   telegramEnabled?: boolean
-  telegramBotToken?: string | null
+  /** Omit to keep the stored token; an empty value would erase it. Never round-tripped back from the api. */
+  telegramBotToken?: string
   telegramChatId?: string | null
   orderMessageTemplate?: string
   termsOfSaleContent?: string | null
@@ -347,7 +348,8 @@ export interface TenantSettingsUpdate {
 /** What `upsertPaymentSetting` sends. The credential shape per provider mirrors what the api's payments module reads back out. */
 export type UpsertPaymentSetting = { isEnabled: boolean } & (
   | { provider: 'STRIPE'; credentials: { publishableKey: string; secretKey: string } }
-  | { provider: 'MERCADOPAGO'; credentials: { accessToken: string } }
+  // Charged through the platform's own account: a store has no credentials of its own, and the api rejects them.
+  | { provider: 'MERCADOPAGO' }
   | {
       provider: 'ZELLE'
       credentials: { recipientName: string; recipientEmail: string; recipientPhone: string; instructions: string }
@@ -370,7 +372,6 @@ export function paymentCredentialsError(payload: UpsertPaymentSetting): string |
       if (!payload.credentials.secretKey.trim()) return 'Ingresá la clave secreta (sk_...)'
       return null
     case 'MERCADOPAGO':
-      if (!payload.credentials.accessToken.trim()) return 'Ingresá el access token de MercadoPago'
       return null
     case 'ZELLE':
       if (!payload.credentials.recipientName.trim()) return 'Ingresá el nombre del destinatario'

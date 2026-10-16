@@ -11,7 +11,8 @@ export default function ChannelsSettingsScreen() {
     whatsappEnabled: tenant.whatsappEnabled,
     whatsappNumber: tenant.whatsappNumber ?? '',
     telegramEnabled: tenant.telegramEnabled,
-    telegramBotToken: tenant.telegramBotToken ?? '',
+    // Write-only: the api returns `telegramBotTokenSet`, never the token, so this always starts blank.
+    telegramBotToken: '',
     telegramChatId: tenant.telegramChatId ?? '',
     orderMessageTemplate: tenant.orderMessageTemplate ?? '',
   }))
@@ -60,7 +61,11 @@ export default function ChannelsSettingsScreen() {
         {values.telegramEnabled ? (
           <>
             <Input
-              label="Token del bot"
+              label={
+                form.tenant?.telegramBotTokenSet ? 'Token del bot (dejalo vacío para conservar el guardado)' : 'Token del bot'
+              }
+              placeholder={form.tenant?.telegramBotTokenSet ? '••••••••' : undefined}
+              secureTextEntry
               autoCapitalize="none"
               value={values.telegramBotToken}
               editable={form.canEdit}
@@ -100,13 +105,16 @@ export default function ChannelsSettingsScreen() {
               whatsappEnabled: values.whatsappEnabled,
               whatsappNumber: values.whatsappNumber.trim() || null,
               telegramEnabled: values.telegramEnabled,
-              telegramBotToken: values.telegramBotToken.trim() || null,
+              // An empty token means keep the stored one: sending null or '' would erase it, and with it every
+              // Telegram order notification, on an unrelated save.
+              ...(values.telegramBotToken.trim() ? { telegramBotToken: values.telegramBotToken.trim() } : {}),
               telegramChatId: values.telegramChatId.trim() || null,
               orderMessageTemplate: values.orderMessageTemplate,
             },
             (v) => {
               if (v.whatsappEnabled && !v.whatsappNumber.trim()) return 'Ingresá el número de WhatsApp'
-              if (v.telegramEnabled && !v.telegramBotToken.trim()) return 'Ingresá el token del bot de Telegram'
+              if (v.telegramEnabled && !form.tenant?.telegramBotTokenSet && !v.telegramBotToken.trim())
+                return 'Ingresá el token del bot de Telegram'
               if (v.telegramEnabled && !v.telegramChatId.trim()) return 'Ingresá el chat ID de Telegram'
               return null
             },

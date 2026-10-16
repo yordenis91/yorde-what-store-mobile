@@ -56,7 +56,8 @@ export interface Tenant {
   whatsappEnabled: boolean
   whatsappNumber: string | null
   telegramEnabled: boolean
-  telegramBotToken: string | null
+  /** Whether a bot token is currently stored - the token itself is never returned by the api. */
+  telegramBotTokenSet: boolean
   telegramChatId: string | null
   /** Placeholders: {store_name} {order_no} {item_variable} {sub_total} {discount_amount} {shipping_amount} {item_tax} {item_total}. Never null — the api column defaults to "". */
   orderMessageTemplate: string
